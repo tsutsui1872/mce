@@ -1,0 +1,467 @@
+rootpath:
+  CMIP5: /home/tsutsui/data/CMIP5
+  CMIP6: /home/tsutsui/data/CMIP6
+
+# branch_year:
+#   year in piControl from which a different experiment branches
+
+CMIP5:
+  input_dir: '[exp][frequency][dataset]'
+  input_file: '[short_name]_[mip]_[dataset]_[exp]_[ensemble]_*.nc'
+  source:
+    ACCESS1-0:
+      # to be renamed to ACCESS1.0
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 300
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 300
+    ACCESS1-3:
+      # to be renamed to ACCESS1.3
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 250
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 250
+    bcc-csm1-1:
+      # to be renamed to BCC-CSM1.1
+      # metadata branch_time may have wrong units
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 160
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 160
+    BNU-ESM:
+      # metadata branch_time set to 1450, but changed as follows
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1850
+    CCSM4:
+      # metadata branch_time is suspicious, then changed as follows
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 800
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 800
+    CNRM-CM5:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1850
+    CSIRO-Mk3-6-0:
+      # to be renamed to CSIRO-Mk3.6.0
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 104
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 104
+    CanESM2:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 2321
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 2321
+    FGOALS-s2:
+      # metadata branch_time is set to 1300.0,
+      # corresponding to 1853-07-25 00:00:00
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1853
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1853
+    GFDL-CM3:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1
+    GFDL-ESM2G:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1
+      1pctCO2:
+        ensemble: r1i1p2
+        branch_year: 11
+    GFDL-ESM2M:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1
+      1pctCO2:
+        ensemble: r1i1p2
+        branch_year: 10
+    GISS-E2-H:
+      # metadata branch_time is vague
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 2660
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 2410
+    GISS-E2-R:
+      # metadata branch_time is vague
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 4200
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 3981
+    HadGEM2-ES:
+      # branch at 1859-12-01 00:00:00
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1860
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1860
+    inmcm4:
+      # to be renamed to INM-CM4
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 2090
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 2090
+    IPSL-CM5A-LR:
+      # metadata brach_time may have wrong units
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1850
+    IPSL-CM5B-LR:
+      # metadata brach_time may have wrong units
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1850
+    MIROC-ESM:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1880
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1880
+    MIROC5:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 2100
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 2200
+    MPI-ESM-LR:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1880
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1880
+    MPI-ESM-MR:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1850
+    MPI-ESM-P:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1866
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1866
+    MRI-CGCM3:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 1891
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 1891
+    NorESM1-M:
+      piControl:
+        ensemble: r1i1p1
+      abrupt4xCO2:
+        ensemble: r1i1p1
+        branch_year: 700
+      1pctCO2:
+        ensemble: r1i1p1
+        branch_year: 700
+
+CMIP6:
+  input_dir: '[dataset][exp]'
+  input_file: [
+    '[short_name]_[mip]_[dataset]_[exp]_[ensemble]_*.nc',
+    '[short_name]_[mip]_[exp]_[dataset]_[ensemble]_*.nc']
+  source:
+    BCC-CSM2-MR:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1850
+    BCC-ESM1:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1850
+    CAMS-CSM1-0:
+      # metadata branch_time may have wrong units
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 3030
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 3030
+    CESM2:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 501
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 501
+    CESM2-WACCM:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 70
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 70
+    CNRM-CM6-1:
+      piControl:
+        ensemble: r1i1p1f2
+      abrupt-4xCO2:
+        ensemble: r1i1p1f2
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1f2
+        branch_year: 1850
+    CNRM-ESM2-1:
+      piControl:
+        ensemble: r1i1p1f2
+      abrupt-4xCO2:
+        ensemble: r1i1p1f2
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1f2
+        branch_year: 1850
+    CanESM5:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 5201
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 5201
+    E3SM-1-0:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 101
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 101
+    EC-Earth3-Veg:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1850
+    GFDL-CM4:
+      # metadata branch_time_in_child is vague
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 251
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 251
+    GISS-E2-1-G:
+      # CO2 forcing in 1pctCO2 is capped at a doubling level
+      # 1pctCO2 data under the capped forcing is replaced with 1pctCO2-4xext,
+      # which branches from 1pctCO2 at the doubling level
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 4150
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 4150
+      1pctCO2-4xext:
+        ensemble: r1i1p1f1
+        branch_year: 4220
+    GISS-E2-1-H:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 3180
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 3180
+    HadGEM3-GC31-LL:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f3
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1f3
+        branch_year: 1850
+    IPSL-CM6A-LR:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1870
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1870
+    MIROC-ES2L:
+      piControl:
+        ensemble: r1i1p1f2
+      abrupt-4xCO2:
+        ensemble: r1i1p1f2
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1f2
+        branch_year: 1850
+    MIROC6:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 3200
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 3200
+    MRI-ESM2-0:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1850
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1850
+    NESM3:
+      # metadata branch_time_in_parent and parent_time_units may have
+      # wrong units
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 550
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 550
+    NorESM2-LM:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1600
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1600
+    SAM0-UNICON:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 274
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 274
+    UKESM1-0-LL:
+      piControl:
+        ensemble: r1i1p1f2
+      abrupt-4xCO2:
+        ensemble: r1i1p1f2
+        branch_year: 1960
+      1pctCO2:
+        ensemble: r1i1p1f2
+        branch_year: 1960
+
