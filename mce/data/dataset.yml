@@ -433,15 +433,16 @@ CMIP6:
         ensemble: r1i1p1f1
         branch_year: 690
     GFDL-CM4:
-      # metadata branch_time_in_child is vague
+      # Year 101 (branch_time_in_parent) is not included in the piControl range
+      # Assume branched from the first year provided
       piControl:
         ensemble: r1i1p1f1
       abrupt-4xCO2:
         ensemble: r1i1p1f1
-        branch_year: 251
+        branch_year: 151
       1pctCO2:
         ensemble: r1i1p1f1
-        branch_year: 251
+        branch_year: 151
     GFDL-ESM4:
       piControl:
         ensemble: r1i1p1f1
