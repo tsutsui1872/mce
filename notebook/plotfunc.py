@@ -1,7 +1,8 @@
+# -*- coding: utf-8 -*-
+# vim:fenc=utf-8
 """
 Plotting functions
 """
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -37,15 +38,27 @@ def plot_fitting(gcm, forcing, irm, names, px, kw_space={}, kw_seaborn={}):
     -------
     fig : figure object
     """
-    wspace = kw_space.get('wspace', 0.9)
-    hspace = kw_space.get('hspace', 0.4)
-    height = kw_space.get('height', 2.5)
-    aspect = kw_space.get('aspect', 1.4)
-    p1 = PlotSpace(height=height, aspect=aspect, wspace=wspace, hspace=hspace)
+    opts_space = {
+        'height': 2.5,
+        'aspect': 1.4,
+        'wspace': 0.9,
+        'hspace': 0.4,
+        'left': 0.8,
+        'bottom': 0.8,
+        'right': 0.3,
+        'top': 0.5,
+    }
+    opts_space.update(kw_space)
+
+    height = opts_space['height']
+    aspect = opts_space['aspect']
+    hspace = opts_space['hspace']
+    wspace = opts_space['wspace']
+    width = height * aspect
+
+    p1 = PlotSpace(**opts_space)
     p1.append('bottom')
-    p1.append(
-        'right', height=height*aspect, aspect=1.,
-        yoff=height*2+hspace-height*aspect)
+    p1.append('right', height=width, aspect=1., yoff=height*2+hspace-width)
     fig = p1.newfigure(**kw_seaborn)
     for ax in fig.axes:
         p1.despine(ax=ax)
@@ -172,7 +185,13 @@ def plot_fitting(gcm, forcing, irm, names, px, kw_space={}, kw_seaborn={}):
             u'ecs(reg), tcr(gcm): {:.2f}, {:.2f} {}, rwf: {:.2f}'
             .format(px['ecs_reg'], px['tcr_gcm'], degc,
                     px['tcr_gcm']/px['ecs_reg']))
-    fig.text(0.58, 0.27, '\n'.join(result_text), ha='left', va='top', size=10)
+    # xpos = 0.58
+    # ypos = 0.27
+    xpos = (opts_space['left'] + width + wspace + 0.02) / (
+        opts_space['left'] + 2*width + wspace + opts_space['right'])
+    ypos = (opts_space['bottom'] + 1.) / (
+        opts_space['bottom'] + 2*height + hspace + opts_space['top'])
+    fig.text(xpos, ypos, '\n'.join(result_text), ha='left', va='top', size=10)
 
     for i, ax in enumerate(fig.axes):
         ax.text(
@@ -314,9 +333,11 @@ def plot_tcr_ecs(parms, ecs_conv=True, **kw):
     return p1
 
 
-def plot_parms_rel(df):
+def plot_parms_rel(df, **kw):
     """
     """
+    # bins_fb = kw.get('bins_fb', [0.5, 0.8, 1.1, 1.4, 1.7])
+    bins_fb = kw.get('bins_fb', [-np.inf, 0.8, 1.1, 1.4, np.inf])
     df = df.copy()
     df['1/lambda'] = 1. / df['lambda']
     df['rwf'] = df['tcr'] / df['ecs']
@@ -331,9 +352,10 @@ def plot_parms_rel(df):
     df['a2*yrwf2'] = df['a2']*df['yrwf2']
 
     # categorize with 1/lambda
-    if df['1/lambda'].min() < 0.5 or df['1/lambda'].max() > 1.7:
-        raise ValueError
-    bincat = pd.cut(df['1/lambda'], bins=np.linspace(0.5, 1.7, 5))
+    # if df['1/lambda'].min() < 0.5 or df['1/lambda'].max() > 1.7:
+    #     raise ValueError
+    # bincat = pd.cut(df['1/lambda'], bins=np.linspace(0.5, 1.7, 5))
+    bincat = pd.cut(df['1/lambda'], bins=bins_fb)
 
     # CMIP5 mean
     dfm = df.groupby('mip').mean().loc['CMIP5']

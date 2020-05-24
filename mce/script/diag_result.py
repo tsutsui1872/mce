@@ -1,12 +1,18 @@
+# -*- coding: utf-8 -*-
+# vim:fenc=utf-8
+
 """
-Class for handling estimated forcing-response parameters
+Class for post-processing
 """
 
 import numpy as np
 import pandas as pd
+# from mce import get_logger
 from mce.util.io import read_ncfile
 from mce.core.forcing import RfCO2
 from mce.core.climate import IrmBase
+
+# logger = get_logger('mce')
 
 class DiagResult(object):
     def __init__(self, **kw):
@@ -21,13 +27,23 @@ class DiagResult(object):
             'INM-CM4', 'IPSL-CM5A-LR', 'IPSL-CM5B-LR', 'MIROC-ESM', 'MIROC5',
             'MPI-ESM-LR', 'MPI-ESM-MR', 'MPI-ESM-P', 'MRI-CGCM3', 'NorESM1-M',
         ]
-        self.sources_cmip6 = [
+        self.sources_cmip6_grl_paper = [
             'BCC-CSM2-MR', 'BCC-ESM1', 'CanESM5', 'CESM2', 'CESM2-WACCM',
             'CNRM-CM6-1', 'CNRM-ESM2-1', 'GFDL-CM4', 'GISS-E2-1-G',
             'GISS-E2-1-H', 'HadGEM3-GC31-LL', 'IPSL-CM6A-LR', 'MIROC6',
             'MIROC-ES2L', 'MRI-ESM2-0', 'SAM0-UNICON', 'UKESM1-0-LL',
             'EC-Earth3-Veg', 'CAMS-CSM1-0', 'E3SM-1-0', 'NESM3', 'NorESM2-LM',
         ]
+        self.sources_cmip6 = [
+            'ACCESS-CM2', 'ACCESS-ESM1-5', 'AWI-CM-1-1-MR', 'BCC-CSM2-MR',
+            'BCC-ESM1', 'CAMS-CSM1-0', 'CanESM5', 'CESM2', 'CESM2-FV2',
+            'CESM2-WACCM', 'CESM2-WACCM-FV2', 'CNRM-CM6-1', 'CNRM-CM6-1-HR',
+            'CNRM-ESM2-1', 'E3SM-1-0', 'EC-Earth3', 'EC-Earth3-Veg',
+            'FGOALS-f3-L', 'FGOALS-g3', 'GFDL-CM4', 'GFDL-ESM4', 'GISS-E2-1-G',
+            'GISS-E2-1-H', 'GISS-E2-2-G', 'HadGEM3-GC31-LL', 'HadGEM3-GC31-MM',
+            'INM-CM4-8', 'IPSL-CM6A-LR', 'MIROC-ES2L', 'MIROC6',
+            'MPI-ESM1-2-HR', 'MPI-ESM1-2-LR', 'MRI-ESM2-0', 'NESM3',
+            'NorESM2-LM', 'NorESM2-MM', 'SAM0-UNICON', 'UKESM1-0-LL']
         self.map_sources = {
             'ACCESS1.0': 'ACCESS1-0',
             'ACCESS1.3': 'ACCESS1-3',
@@ -148,4 +164,105 @@ class DiagResult(object):
         xlamb = df['alpha'] * np.log(2.) / ecs
         df['ecs'] = ecs
         df['lambda'] = xlamb
+
+
+class ParmTable(object):
+    def __init__(self, df):
+        df['thc'] = self.total_heat_capacity(df)
+        self.df = df
+
+        self.map_names = {
+            'alpha': r'$\alpha$',
+            'beta': r'$\beta$',
+            'lambda': r'$\lambda$',
+            'lambda_reg': '',
+            'a0': '$A_{S0}$',
+            'a1': '$A_{S1}$',
+            'a2': '$A_{S2}$',
+            'tau0': r'$\tau_0$',
+            'tau1': r'$\tau_1$',
+            'tau2': r'$\tau_2$',
+            'thc': r'$C_T$',
+            'ecs': 'ECS',
+            'ecs_reg': '',
+            'tcr': 'TCR',
+            'tcr_gcm': '',
+        }
+        self.map_units = {
+            'alpha': '(W/m$^2$)',
+            'lambda': '(W/m$^2$/$^\circ$C)',
+            'tau0': '(y)',
+            'tau1': '(y)',
+            'tau2': '(y)',
+            'thc': '(m)',
+            'ecs': '($^\circ$C)',
+            'tcr': '($^\circ$C)',
+        }
+        self.map_format = {
+            'a0': '{:0.3f}',
+            'a1': '{:0.3f}',
+            'a2': '{:0.3f}',
+            'tau0': '{:0.2f}',
+            'tau1': '{:0.3g}',
+            'tau2': '{:0.4g}',
+            'thc': '{:0.4g}',
+            'lambda_reg': '({:0.2f})',
+            'ecs_reg': '({:0.2f})',
+            'tcr_gcm': '({:0.2f})',
+        }
+
+    def total_heat_capacity(self, df, nl=3, factor=None):
+        """
+        Return total heat capacity represented by an equivalent ocean depth
+        """
+        spy = 3.15569e7 # seconds per year
+        frac_a = 0.71 # ocean area fraction
+        rhow = 1.03e3 # density of sea water in kg/m3
+        cpw = 4.18e3 # specific heat of sea water in J/kg/degC
+        if factor is None:
+            factor = spy / (rhow * cpw * frac_a)
+
+        asj = df[['a{}'.format(i) for i in range(nl)]].rename(
+            lambda x: x.replace('a', ''), axis=1)
+        tauj = df[['tau{}'.format(i) for i in range(nl)]].rename(
+            lambda x: x.replace('tau', ''), axis=1)
+        thc = df['lambda'] * (asj * tauj).sum(axis=1) * factor
+
+        return thc
+
+    def get_table(self, mip=None, **kw):
+        models = kw.get('models')
+
+        names = [
+            'alpha', 'beta', 'lambda', 'lambda_reg', 'a0', 'a1', 'a2',
+            'tau0', 'tau1', 'tau2', 'thc', 'ecs', 'ecs_reg', 'tcr', 'tcr_gcm']
+
+        if mip is not None:
+            df = self.df.loc[self.df['mip']==mip, names]
+        else:
+            df = self.df[names]
+
+        if models is not None:
+            df = df.reindex(models)
+
+        df = pd.concat([df, df.mean().to_frame('Mean').T], sort=False)
+
+        for name in df:
+            df[name] = [
+                self.map_format.get(name, '{:0.2f}').format(x)
+                for x in df[name]]
+
+        for namex in [
+                ['lambda', 'lambda_reg'],
+                ['ecs', 'ecs_reg'],
+                ['tcr', 'tcr_gcm'] ]:
+            df[namex[0]] = df[namex].apply(
+                lambda x: ' '.join(x.tolist()), axis=1)
+            df.drop(namex[1], axis=1, inplace=True)
+
+        df.columns = pd.MultiIndex.from_tuples(
+            [(self.map_names.get(name, name), self.map_units.get(name, ''))
+             for name in df])
+
+        return df
 
