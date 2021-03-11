@@ -25,3 +25,6 @@ def get_logger(name):
     return logger
 
 
+class MCEExecError(Exception):
+    pass
+

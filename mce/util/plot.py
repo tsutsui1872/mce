@@ -262,7 +262,8 @@ class PlotSpace(object):
         """
         Share the range of x-axis and/or y-axis
         """
-        assert axis in ['both', 'x', 'y']
+        if axis not in ['both', 'x', 'y']:
+            raise ValueError
 
         if axes is None:
             axes = self.figure.axes

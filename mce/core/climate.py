@@ -4,6 +4,7 @@ response model.
 """
 
 import numpy as np
+from mce import MCEExecError
 from mce.core import ModelBase
 
 class IrmBase(ModelBase):
@@ -28,7 +29,7 @@ class IrmBase(ModelBase):
         nl = len(args) > 0 and args[0] or 3
         if nl not in [2, 3]:
             self.logger.error('invalid number of layers {}'.format(nl))
-            assert nl in [2, 3]
+            raise MCEExecError
 
         # CMIP5 mean
         if nl == 3:
@@ -155,7 +156,7 @@ class IrmBase(ModelBase):
         nl = len(tauj)
         if nl not in [2, 3]:
             self.logger.error('invalid number of layers {}'.format(nl))
-        assert nl in [2, 3]
+            raise MCEExecError
 
         xitot = (asj*tauj).sum() * lamb
         xis = lamb / (asj/tauj).sum()
@@ -246,8 +247,7 @@ class IrmBase(ModelBase):
         """
         if variable not in ['tres', 'flux', 'heat']:
             self.logger.error('invalid variable {}'.format(variable))
-
-        assert variable in ['tres', 'flux', 'heat']
+            raise MCEExecError
 
         parms = self.parms
         akj = np.array(kw.get('akj', kw.get('asj', parms['asj']))).astype('d')

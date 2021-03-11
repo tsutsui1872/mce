@@ -8,7 +8,7 @@ from scipy import stats
 import iris
 import cf_units
 from lmfit import Parameters, minimize
-from mce import get_logger
+from mce import MCEExecError, get_logger
 from mce.core.forcing import RfCO2
 from mce.core.climate import IrmBase
 
@@ -24,7 +24,7 @@ class ParmEstimate(object):
         """
         if nl not in [2, 3]:
             logger().error('invalid number of layers {}'.format(nl))
-            assert nl in [2, 3]
+            raise MCEExecError
 
         self.nl = nl
         self.irm = IrmBase(nl)
