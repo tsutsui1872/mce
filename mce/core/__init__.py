@@ -7,9 +7,9 @@ from mce import get_logger
 
 class ModelBase(object):
     def __init__(self, *args, **kw):
+        self.logger = get_logger('mce')
         self.parms = {}
         self.init_process(*args, **kw)
-        self.logger = get_logger('mce')
 
     def init_process(self, *args, **kw):
         """
@@ -33,7 +33,7 @@ class ModelBase(object):
                 self.logger.warning('parameter "{}" not defined'.format(k))
                 continue
 
-            if np.isscalar(v):
+            if np.isscalar(v) or isinstance(v, dict):
                 parms[k] = v
             else:
                 parms[k] = np.array(v)
