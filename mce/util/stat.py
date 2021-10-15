@@ -309,12 +309,18 @@ class SamplingMH:
         random = np.random.uniform(size=len(weights))
         i0, i1 = 0, 1
         index = [i0]
+        index_a = [i0]
+
         while i1 < len(weights):
-            alpha = min(weights[i1] / weights[i0], 1)
-            if random[i1] < alpha and weights[i1] < self.w_cutoff:
-                index.append(i1)
+            if weights[i1] / weights[i0] > random[i1] \
+                    and weights[i1] < self.w_cutoff:
+                index_a.append(i1)
                 i0 = i1
+
+            index.append(i0)
             i1 += 1
 
-        return [self.df.index[i] for i in index]
+        index = [self.df.index[i] for i in index]
+        index_a = [self.df.index[i] for i in index_a]
 
+        return index, index_a

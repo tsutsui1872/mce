@@ -23,3 +23,13 @@ Typical usage is demonstrated in Jupyter Notebook files:
 - [`t_ensemble_runs.ipynb`](notebook/t_ensemble_runs.ipynb) for ensemble runs
 - [`t_genparms.ipynb`](notebook/t_genparms.ipynb) for perturbed model parameters
 
+
+### Minor update v1.2.1
+
+A new Jupyter notebook
+[`t_genparms_rcmip2.ipynb`](notebook/t_genparms_rcmip2.ipynb)
+has been added, which reproduces the perturbed-parameter ensemble used in the RCMIP Phase 2 (Nicholls et al. 2021, https://doi.org/10.1029/2020EF001900).
+The model components and the experiment results are described in Tsutsui (2021).
+
+Tsutsui, J.: Minimal CMIP Emulator (MCE v1.2): A new simplified method for probabilistic climate projections, Geosci. Model Dev. Discuss. [preprint], https://doi.org/10.5194/gmd-2021-79, in review, 2021.
+
