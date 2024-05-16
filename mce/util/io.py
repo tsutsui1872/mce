@@ -1,6 +1,7 @@
 """
 Utility for handling data files
 """
+import pathlib
 import urllib.request
 import pandas as pd
 import netCDF4
@@ -40,6 +41,38 @@ def read_url(url, decode=True, queries={}):
         ret = ret.decode(enc)
 
     return ret
+
+
+def retrieve_url(path, url):
+    """Retrieve data from url
+
+    Parameters
+    ----------
+    path
+        Local file path
+    url
+        URL
+
+    Returns
+    -------
+        Path object
+    """
+    path = pathlib.Path(path)
+
+    if not path.exists():
+        ret = read_url(url, decode=False)
+        logger.info(f'Retrieved from {url}')
+
+        if not path.parent.is_dir():
+            path.parent.mkdir(parents=True)
+            logger.info('Directory {} created'.format(path.parent.as_posix()))
+
+        with path.open('wb') as f1:
+            f1.write(ret)
+
+        logger.info('File {} created'.format(path.as_posix()))
+
+    return path
 
 
 def read_ncfile(path, *args, **kw):
@@ -117,14 +150,18 @@ def write_nc(path, var_dict, gatts, dim_unlimited='time'):
                 continue
             dim_dict[name] = size if name != dim_unlimited else None
 
-    ncf = Dataset(path, 'w')
+    ncf = netCDF4.Dataset(path, 'w')
 
     for name, size in dim_dict.items():
         ncf.createDimension(name, size)
 
     for name, (data, dims, atts) in var_dict.items():
+        dtype = data.dtype
+        if dtype == 'object':
+            dtype = str
+
         ncv = ncf.createVariable(
-            name, data.dtype, dims,
+            name, dtype, dims,
             fill_value=getattr(data, 'fill_value', None),
         )
         ncv.setncatts(atts)
