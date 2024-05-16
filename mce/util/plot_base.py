@@ -526,3 +526,33 @@ class PlotBase:
         axis.set_label_position(spine)
 
         return ax
+
+    def get_fig_position_relto_axes(self, p, *args):
+        """Get a figure position relative to multiple axes
+
+        Parameters
+        ----------
+        p
+            Position relative to multiple axes
+
+        Returns
+        -------
+            Figure position
+        """
+        axes = self.get_axes(*args, **{'squeeze': False})
+
+        bounds = np.vstack([
+            (ax.transAxes + ax.figure.transFigure.inverted())
+            .transform([(0., 0.), (1., 1.)]).ravel()
+            for ax in axes
+        ])
+
+        x0 = bounds[:, 0].min()
+        y0 = bounds[:, 1].min()
+        x1 = bounds[:, 2].max()
+        y1 = bounds[:, 3].max()
+
+        return (
+            x0 + (x1 - x0) * p[0],
+            y0 + (y1 - y0) * p[1],
+        )
