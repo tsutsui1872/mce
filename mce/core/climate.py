@@ -4,8 +4,35 @@ response model.
 """
 
 import numpy as np
-from mce import MCEExecError
-from mce.core import ModelBase
+from .. import MCEExecError
+from . import ParmsBase
+from . import ModelBase
+
+class IrmParms(ParmsBase):
+    def __init__(self, nl=3):
+        # CMIP5 mean
+        self.add(
+            'asj',
+            [0.2616, 0.3362, 0.4022] if nl == 3 else [0.5565, 0.4435],
+            'Non-dimensional amplitudes in the surface layer',
+            'none',
+            False,
+        )
+        self.add(
+            'tauj',
+            [1.033, 10.48, 260.6] if nl == 3 else [3.799, 218.8],
+            'Time constants',
+            'yr',
+            False,
+        )
+        self.add(
+            'lamb',
+            # 1.136 if nl == 3 else 1.102,
+            1.053 if nl == 3 else 1.029, # adjusted
+            'Climate feedback parameter',
+            'W m-2 degC-1',
+            False,
+        )
 
 class IrmBase(ModelBase):
     def init_process(self, *args, **kw):
@@ -28,25 +55,12 @@ class IrmBase(ModelBase):
         """
         nl = len(args) > 0 and args[0] or 3
         if nl not in [2, 3]:
-            self.logger.error('invalid number of layers {}'.format(nl))
-            raise MCEExecError
+            mesg = 'invalid number of layers {}'.format(nl)
+            self.logger.error(mesg)
+            raise MCEExecError(mesg)
 
-        # CMIP5 mean
-        if nl == 3:
-            self.parms = {
-                'asj': np.array([0.2616, 0.3362, 0.4022]),
-                'tauj': np.array([1.033, 10.48, 260.6]),
-                # 'lamb': 1.136,
-                'lamb': 1.053, # adjusted
-            }
-        else:
-            self.parms = {
-                'asj': np.array([0.5565, 0.4435]),
-                'tauj': np.array([3.799, 218.8]),
-                # 'lamb': 1.102,
-                'lamb': 1.029, # adjusted
-            }
-        self.parms_update(**kw)
+        self.parms = IrmParms(nl)
+        self.parms.update(**kw)
 
         self.tkjlast = 0
 
@@ -97,9 +111,9 @@ class IrmBase(ModelBase):
         time = np.array(time).astype('d')
         erf = np.array(erf).astype('d')
 
-        akj = np.array(kw.get('akj', kw.get('asj', parms['asj']))).astype('d')
-        tauj = np.array(kw.get('tauj', parms['tauj'])).astype('d')
-        lamb = np.array(kw.get('lamb', parms['lamb'])).astype('d')
+        akj = np.array(kw.get('akj', kw.get('asj', parms.asj))).astype('d')
+        tauj = np.array(kw.get('tauj', parms.tauj)).astype('d')
+        lamb = np.array(kw.get('lamb', parms.lamb)).astype('d')
 
         dt = np.nan
 
@@ -122,7 +136,7 @@ class IrmBase(ModelBase):
 
     def get_parms_ebm(self, ret_depth=False, **kw):
         """
-        Get derived parameters for a three-layer model.
+        Get derived parameters for an equivalent box model.
 
         Parameters
         ----------
@@ -149,9 +163,9 @@ class IrmBase(ModelBase):
             Non-dimensional amplitudes for the full layers.
             The first layer elements are the same as `asj`.
         """
-        asj = np.array(kw.get('asj', self.parms['asj'])).astype('d')
-        tauj = np.array(kw.get('tauj', self.parms['tauj'])).astype('d')
-        lamb = np.array(kw.get('lamb', self.parms['lamb'])).astype('d')
+        asj = np.array(kw.get('asj', self.parms.asj)).astype('d')
+        tauj = np.array(kw.get('tauj', self.parms.tauj)).astype('d')
+        lamb = np.array(kw.get('lamb', self.parms.lamb)).astype('d')
 
         nl = len(tauj)
         if nl not in [2, 3]:
@@ -214,6 +228,57 @@ class IrmBase(ModelBase):
 
         return lambk, xik, akj
 
+    def ebm_to_irm(self, lambk, xik):
+        """
+        Get impulse response parameters from box model parameters.
+
+        Parameters
+        ----------
+        lambk : 1-d array
+            Heat exchange coefficients in W/m2/degC.
+
+        xik : 1-d array
+            Heat capacities in J/m2/degC divided by annual total seconds.
+
+        Returns
+        -------
+        tauj : 1-d array
+            Time constants in year.
+
+        akj : 2-d array
+            Non-dimensional amplitudes for the full layers.
+        """
+        nl = len(lambk)
+
+        if nl == 2:
+            msyst = np.array([
+                [(lambk[0] + lambk[1]) / xik[0], -lambk[1] / xik[0]],
+                [-lambk[1] / xik[1], lambk[1] / xik[1]],
+            ])
+        elif nl == 3:
+            msyst = np.array([
+                [(lambk[0] + lambk[1]) / xik[0], -lambk[1] / xik[0], 0.],
+                [-lambk[1] / xik[1], (lambk[1] + lambk[2]) / xik[1], -lambk[2] / xik[1]],
+                [0., -lambk[2] / xik[2], lambk[2] / xik[2]],
+            ])
+        else:
+            mesg = 'invalid number of layers {}'.format(nl)
+            self.logger.error(mesg)
+            raise MCEExecError(mesg)
+
+        eigval, eigvec = np.linalg.eig(msyst)
+        
+        tauj = 1./eigval
+        akj = np.dot(
+            np.diag(1./eigval),
+            np.linalg.solve(
+                eigvec/eigvec[0, :],
+                np.diag(lambk[0] / np.array(xik)),
+            ),
+        ).T
+
+        return tauj, akj
+
     def response_ideal(self, time, kind='step', variable='tres', **kw):
         """
         Analytically compute response to step- or ramp-shaped forcing.
@@ -250,9 +315,9 @@ class IrmBase(ModelBase):
             raise MCEExecError
 
         parms = self.parms
-        akj = np.array(kw.get('akj', kw.get('asj', parms['asj']))).astype('d')
-        tauj = np.array(kw.get('tauj', parms['tauj'])).astype('d')
-        lamb = np.array(kw.get('lamb', parms['lamb'])).astype('d')
+        akj = np.array(kw.get('akj', kw.get('asj', parms.asj))).astype('d')
+        tauj = np.array(kw.get('tauj', parms.tauj)).astype('d')
+        lamb = np.array(kw.get('lamb', parms.lamb)).astype('d')
 
         isscalar = akj.ndim == 1 and np.isscalar(time)
 
