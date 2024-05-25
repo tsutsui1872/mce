@@ -74,6 +74,42 @@ def retrieve_url(path, url):
 
     return path
 
+class RetrieveGitHub:
+    def __init__(self, owner, repo, path_local_dir):
+        """Class for downloading files in a GitHub repository
+
+        Parameters
+        ----------
+        owner
+            owner part in the repository name
+        repo
+            repo part in the repository name
+        path_local_dir
+            local data directory
+        """
+        self.owner = owner
+        self.repo = repo
+        self.path_local_dir = pathlib.Path(path_local_dir)
+
+    def retrieve(self, path):
+        """Retrieve a given path
+
+        Parameters
+        ----------
+        path
+            file path in the repository
+
+        Returns
+        -------
+            downloaded file path in the local data directory
+        """
+        owner = self.owner
+        repo = self.repo
+
+        return retrieve_url(
+            self.path_local_dir.joinpath(owner, repo, path),
+            f'https://github.com/{owner}/{repo}/raw/main/{path}',
+        )
 
 def read_ncfile(path, *args, **kw):
     """
