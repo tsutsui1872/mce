@@ -210,8 +210,16 @@ class PlotBase:
                 '#0173B2', '#DE8F05', '#029E73', '#D55E00', '#CC78BC',
                 '#CA9161', '#FBAFE4', '#949494', '#ECE133', '#56B4E9',
             ],
+            'ipcc_wg1': [
+                '#{:02x}{:02x}{:02x}'.format(*v)
+                for v in [
+                    (0, 0, 0), (112, 160, 205), (196, 121, 0),
+                    (178, 178, 178), (0, 52, 102), (0, 79, 0),
+                ]
+            ],
         }
-        colors = cycler(color=self.palettes['seaborn_colorblind'])
+        palette = kw.get('palette', 'seaborn_colorblind')
+        colors = cycler(color=self.palettes[palette])
 
         self.rc = {
             'axes.prop_cycle': colors,
