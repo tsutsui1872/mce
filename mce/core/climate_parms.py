@@ -8,9 +8,9 @@ from scipy import stats
 import iris
 import cf_units
 from lmfit import Parameters, minimize
-from mce import MCEExecError, get_logger
-from mce.core.forcing import RfCO2
-from mce.core.climate import IrmBase
+from .. import MCEExecError, get_logger
+from .forcing import RfCO2
+from .climate import IrmBase
 
 logger = get_logger('mce')
 
@@ -115,10 +115,12 @@ class ParmEstimate(object):
         forcing = self.forcing
         irm = self.irm
 
-        forcing.parms_update(
-            **dict([(k, kw[k]) for k in forcing.parms if k in kw]))
-        irm.parms_update(
-            **dict([(k, kw[k]) for k in irm.parms if k in kw]))
+        forcing.parms.update(**{
+            k: kw[k] for k in forcing.parms() if k in kw
+        })
+        irm.parms.update(**{
+            k: kw[k] for k in irm.parms() if k in kw
+        })
 
         len4x = kw.get('len4x', 150)
         len1p = kw.get('len1p', 140)
@@ -129,11 +131,11 @@ class ParmEstimate(object):
         rndt4x = irm.response_ideal(time4x, variable='flux')
         ts4x = 1 - rndt4x
         rndt4x = rndt4x * f4x
-        ts4x = ts4x * f4x / irm.parms['lamb']
+        ts4x = ts4x * f4x / irm.parms.lamb
 
         f1p = forcing.xl2erf(time1p * np.log(1.01))
         ts1p = irm.response(time1p, f1p)
-        rndt1p = f1p - irm.parms['lamb'] * ts1p
+        rndt1p = f1p - irm.parms.lamb * ts1p
 
         results = [rndt4x, ts4x, rndt1p[1:], ts1p[1:]]
 
