@@ -6,15 +6,15 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.integrate import solve_ivp
-from mce import MCEExecError, get_logger
-from mce.core.forcing import RfAll as RfAllBase
-from mce.core.climate import IrmBase
-from mce.core.carbon import ModelOcean
-from mce.core.carbon import ModelLand
 from collections import namedtuple
 
+from .. import MCEExecError, get_logger
+from .forcing import RfAll as RfAllBase
+from .climate import IrmBase
+from .carbon import ModelOcean, ModelLand
+
 class RfAll(RfAllBase):
-    def ghg_concentrations_to_forcing(self, dfin, co2_method='c2erf'):
+    def ghg_concentrations_to_forcing(self, dfin, co2_method=None, agg_minor=False):
         """
         Convert GHG concentrations to forcing.
 
@@ -23,49 +23,71 @@ class RfAll(RfAllBase):
         dfin : pandas.DataFrame
             Input concentration data.
 
-        co2_method : str, optional, default 'c2erf'
-            Choice of CO2 forcing scheme.
+        co2_method : str, optional, default None
+            Choice of CO2 forcing scheme ('etminan' or 'ar6').
+
+        agg_minor : bool, optional, default False
+            If True, minor GHGs are aggregated
 
         Returns
         -------
         df : pandas.DataFrame
             Output forcing data.
         """
-        kw_co2 = {}
-        if co2_method == 'c2erf_etminan':
+        if co2_method is not None:
             kw_co2 = {'cn2o': dfin.loc[('N2O', 'ppb')]}
+            def c2erf(cc, **kw):
+                return getattr(self, f'c2erf_{co2_method}')('CO2', cc, **kw)
+        else:
+            kw_co2 = {}
+            c2erf = self.c2erf
+
+        def cm2erf(cm, **kw):
+            return self.c2erf_ar6('CH4', cm, **kw)
+
+        def cn2erf(cn, **kw):
+            return self.c2erf_ar6('N2O', cn, **kw)
+
+        map_adj = {
+            k[:-4]: v
+            for k, v in self.parms_ar6_ghg().items()
+            if k.endswith('_adj')
+        }
+
+        def cx2erf(cx):
+            efficiency = self.ghgs[cx.name[0]].efficiency
+            factor = {'ppt': 1e-3}[cx.name[1]]
+            adj = map_adj.get(cx.name[0], 0.)
+            return cx * efficiency * factor * (1. + adj)
 
         df = [
             dfin.loc[[('CO2', 'ppm')]].transform(
                 getattr(self, co2_method), axis=1, **kw_co2),
             dfin.loc[[('CH4', 'ppb')]].transform(
-                self.cm2erf, axis=1,
-                cn2o=dfin.loc[('N2O', 'ppb')]),
+                cm2erf, axis=1,
+                cn2o=dfin.loc[('N2O', 'ppb')],
+            ),
             dfin.loc[[('N2O', 'ppb')]].transform(
-                self.cn2erf, axis=1,
+                cn2erf, axis=1,
                 cco2=dfin.loc[('CO2', 'ppm')],
-                cch4=dfin.loc[('CH4', 'ppb')]),
+                cch4=dfin.loc[('CH4', 'ppb')],
+            ),
+            dfin
+            .sub(dfin[1750], axis=0)
+            .drop([('CO2', 'ppm'), ('CH4', 'ppb'), ('N2O', 'ppb')])
+            .transform(cx2erf, axis=1),
         ]
 
-        eff = self.parms['efficiency']
-        fac = {'ppt': 1e-3}
-        # Efficiency units: W/m^2/ppb
+        df = pd.concat(df).rename(lambda x: 'W m-2', level='Unit')
 
-        for name in ['Montreal Gases', 'F-Gases']:
-            df.append(
-                dfin
-                [[x.startswith(name)
-                  for x in dfin.index.get_level_values('Variable')]]
-                .transform(
-                    lambda xa:
-                    (xa - self.parms['conc_pi'].get((xa.name[0], 'ppt'), 0.))
-                    * eff[xa.name[0]] * fac[xa.name[1]], axis=1)
-            )
+        if agg_minor:
+            cats = ['CO2', 'CH4', 'N2O', 'OTHER_WMGHG']
+            cats_idx = [(cat, 'W m-2') for cat in cats]
 
-        df = pd.concat(df)
-        df = df.groupby(
-            [x.split('|')[0] for x in df.index.get_level_values('Variable')]
-        ).sum()
+            df = pd.concat([
+                df.loc[cats_idx[:3]],
+                df.drop(cats_idx[:3]).sum().rename(cats_idx[3]).to_frame().T,
+            ])
 
         return df
 
@@ -133,7 +155,7 @@ class Driver:
     rtnt : Total heat uptake in W/m^2
     tak : Temperature change in degC
     tas : Surface temperature change in degC
-    tcre : Transient climate response to cumulative CO2 emissions
+    tcre : Instantaneous TCRE (transient climate response to cumulative CO2 emissions)
         in degC/1000 GtC
     thc : Total heat content change in J/spy/m^2 (spy=seconds per year)
 
@@ -175,6 +197,10 @@ class Driver:
 
     kw_rfall : dict, default {}
         Keyword arguments passed to RfAll().
+        Valid keys and values are as follows:
+        'base': dict, updates for parms
+        'etminan': dict, updates for parms_etminan
+        'ar6': dict, updates for parms_ar6_ghg
 
     kw_ocean : dict, default {}
         Keyword arguments passed to ModelOcean().
@@ -184,16 +210,24 @@ class Driver:
         Keyword arguments passed to ModelLand().
         If None, land carbon cycle is not activated.
 
+    bgc_mode : str, default 'none'
     """
     def __init__(
             self, time, cco2=None, eco2=None, erf_nonco2=None,
             dt=1, df_ghg=None, df_erf_other=None,
-            kw_irm={}, kw_rfall={}, kw_ocean={}, kw_land={}):
-
+            kw_irm={}, kw_rfall={}, kw_ocean={}, kw_land={},
+            bgc_mode='none',
+    ):
         self.logger = get_logger('mce')
         if cco2 is None and eco2 is None:
-            self.logger.error('cco2 or eco2 should be given')
-            raise MCEExecError
+            mesg = 'cco2 or eco2 should be given'
+            self.logger.error(mesg)
+            raise MCEExecError(mesg)
+
+        if bgc_mode not in ['none', 'both', 'ocean_only', 'land_only']:
+            mesg = f'invalid bgc_mode {bgc_mode}'
+            self.logger.error(mesg)
+            raise MCEExecError(mesg)
 
         self.irm = IrmBase(**kw_irm)
         self.forcing = RfAll(**kw_rfall)
@@ -205,6 +239,15 @@ class Driver:
             self.land = ModelLand(**kw_land)
         else:
             self.land = None
+
+        if bgc_mode != 'none':
+            if self.ocean is not None:
+                self.ocean.parms.update(fbon=False)
+
+            if self.land is not None:
+                self.land.parms.update(fbon=False)
+
+        self.bgc_mode = bgc_mode
 
         if not hasattr(time, 'dtype'):
             time = np.array(time, dtype=np.result_type(*time))
@@ -231,12 +274,14 @@ class Driver:
             self.erf_nonco2 = self.interp['erf_nonco2'](self.time)
 
         elif df_ghg is not None and df_erf_other is not None:
-            sca = self.forcing.parms['scaling_factor']
-            self.df_erf = pd.concat(
-                [self.forcing.ghg_concentrations_to_forcing(df_ghg)
-                 .transform(lambda x: x * sca.get(x.name, 1), axis=1),
-                 df_erf_other
-                 .transform(lambda x: x * sca.get(x.name, 1), axis=1)])
+            # sca = self.forcing.parms['scaling_factor']
+            sca = {} # scaling is not activated currently
+            self.df_erf = pd.concat([
+                self.forcing.ghg_concentrations_to_forcing(df_ghg, co2_method='ar6', agg_minor=True)
+                .transform(lambda x: x * sca.get(x.name, 1), axis=1),
+                df_erf_other
+                .transform(lambda x: x * sca.get(x.name, 1), axis=1),
+            ])
             df1 = self.df_erf.drop('CO2').sum()
             self.interp['erf_nonco2'] = interp1d(df1.index.values, df1.values)
             self.erf_nonco2 = df1.loc[self.time].values
@@ -249,23 +294,23 @@ class Driver:
         self.variables = {
             x[0]: self.MCEVariable(*x[1:]) for x in [
                 ('abf', 'Airborne fraction of cumulative CO2 emissions',
-                 'dimensionless'),
-                ('catm', 'Excess carbon in the atmosphere', 'GtC'),
-                ('cbsf', 'Atmosphere-to-land CO2 flux', 'GtC/yr'),
-                ('cbst', 'Accumulated carbon over land', 'GtC'),
+                 'Dimensionless'),
+                ('catm', 'Excess carbon in the atmosphere', 'Gt C'),
+                ('cbsf', 'Atmosphere-to-land CO2 flux', 'Gt C/yr'),
+                ('cbs', 'Accumulated carbon over land', 'Gt C'),
+                ('cbst', 'Accumulated total carbon over land', 'Gt C'),
                 ('cco2', 'Atmospheric CO2 concentration', 'ppm'),
-                ('cocf', 'Atmosphere-to-ocean CO2 flux', 'GtC/yr'),
-                ('coct', 'Accumulated carbon over ocean', 'GtC'),
-                ('ctot', 'Cumulative CO2 emissions', 'GtC'),
-                ('eco2', 'CO2 emissions', 'GtC/yr'),
+                ('cocf', 'Atmosphere-to-ocean CO2 flux', 'Gt C/yr'),
+                ('coct', 'Accumulated total carbon over ocean', 'Gt C'),
+                ('ctot', 'Cumulative CO2 emissions', 'Gt C'),
+                ('eco2', 'CO2 emissions', 'Gt C/yr'),
                 ('erf', 'Total effective radiative forcing', 'W/m^2'),
                 ('erf|CO2', 'Effective radiative forcing of CO2', 'W/m^2'),
+                ('erf|non-CO2', 'Effective radiative forcing of non-CO2', 'W/m^2'),
                 ('rtnt', 'Total heat uptake', 'W/m^2'),
-                ('tak', 'Temperature change', 'degC'),
-                ('tas', 'Surface temperature change', 'degC'), # =tak[0]
-                ('tcre',
-                 'Transient climate response to cumulative CO2 emissions',
-                 'degC/1000 GtC'),
+                ('tak', 'Temperature change', 'K'),
+                ('tas', 'Surface temperature change', 'K'), # =tak[0]
+                ('tcre', 'Instantaneous TCRE', 'K/1000 Gt C'),
                 ('thc', 'Total heat content change', 'J/spy/m^2'),
                 # spy=seconds per year
             ]
@@ -277,6 +322,41 @@ class Driver:
                 self.variables[f'erf|{name}'] = self.MCEVariable(
                     f'Effective radiative forcing of {name}', 'W/m^2'
                 )
+
+        self.restart = False
+
+    def restart_init(
+            self, time, savedata={},
+            d_cco2=None, d_eco2=None, d_erf_nonco2=None):
+        if not hasattr(time, 'dtype'):
+            time = np.array(time, dtype=np.result_type(*time))
+
+        dt = self.dt
+        self.time = np.arange(
+            time[0], time[0]+(int((time[-1]-time[0])/dt)+1)*dt, dt)
+
+        self.savedata.update(savedata)
+
+        self.interp = {}
+        if d_cco2 is not None:
+            self.interp['cco2'] = interp1d(d_cco2.index.values, d_cco2.values)
+        elif d_eco2 is not None:
+            self.interp['eco2'] = interp1d(d_eco2.index.values, d_eco2.values)
+
+        if 'cco2' in self.interp:
+            self.cco2 = self.interp['cco2'](self.time)
+        elif 'eco2' in self.interp:
+            self.eco2 = self.interp['eco2'](self.time)
+
+        if d_erf_nonco2 is not None:
+            self.interp['erf_nonco2'] = interp1d(
+                d_erf_nonco2.index.values,
+                d_erf_nonco2.values,
+            )
+        if 'erf_nonco2' in self.interp:
+            self.erf_nonco2 = self.interp['erf_nonco2'](self.time)
+
+        self.restart = True
 
     def _func_cdrv(self, t, y):
         """
@@ -298,7 +378,7 @@ class Driver:
         """
         lamb = self.irm_lamb
         akj = self.irm_akj
-        tauj = self.irm.parms['tauj']
+        tauj = self.irm.parms.tauj
 
         ocean = self.ocean
         land = self.land
@@ -315,11 +395,11 @@ class Driver:
         if ocean is not None:
             n0 = nl*nl
             tas = takj[0, :].sum()
-            catm = (cco2-ocean.parms['cco2_pi'])/ocean.parms['alphaa']
+            catm = (cco2-ocean.parms.cco2_pi)/ocean.parms.alphaa
 
             coc = np.zeros(4)
             coc[1:] = y[n0:n0+3]
-            hls = ocean.parms['hls']
+            hls = ocean.parms.hlk[0]
             coc[0] = ocean.partit_inv(catm, hls, tas) - catm
             ydot.append(-np.dot(ocean.msyst[1:,:], coc))
 
@@ -328,7 +408,7 @@ class Driver:
                 cbs = np.array(y[n0:n0+4])
                 fert = land.fertmm(catm)
                 tau_l = land.get_tau(tas)
-                ydot.append(-cbs/tau_l + fert*land.parms['amp']*tau_l)
+                ydot.append(-cbs/tau_l + fert * land.parms.amp * tau_l)
 
         return np.hstack(ydot)
 
@@ -347,7 +427,7 @@ class Driver:
         ret : dict
             Resulting time series of each variable.
         """
-        cco2_pi = kw.get('cco2_pi', self.forcing.parms['ccref'])
+        cco2_pi = kw.get('cco2_pi', self.forcing.parms.ccref)
         erf_nonco2_pi = kw.get('erf_nonco2_pi', 0.)
         erf_pi = self.forcing.c2erf(cco2_pi) + erf_nonco2_pi
 
@@ -361,7 +441,7 @@ class Driver:
             erf += self.erf_nonco2
 
         if erf_pi != 0.:
-            irm.tkjlast = erf_pi / irm.parms['lamb'] * akj
+            irm.tkjlast = erf_pi / irm.parms.lamb * akj
             init = False
         else:
             init = True
@@ -386,8 +466,8 @@ class Driver:
         ret : dict
             Resulting time series of each variable.
         """
-        cco2_pi = kw.get('cco2_pi', self.forcing.parms['ccref'])
-        cco2_pi_ocean = kw.get('cco2_pi', self.ocean.parms['cco2_pi'])
+        cco2_pi = kw.get('cco2_pi', self.forcing.parms.ccref)
+        cco2_pi_ocean = kw.get('cco2_pi', self.ocean.parms.cco2_pi)
         erf_nonco2_pi = kw.get('erf_nonco2_pi', 0.)
         erf_pi = self.forcing.c2erf(cco2_pi) + erf_nonco2_pi
 
@@ -397,34 +477,32 @@ class Driver:
         ocean = self.ocean
         land = self.land
 
-        nl = len(irm.parms['tauj'])
+        nl = len(irm.parms.tauj)
         lambk, xik, akj = irm.get_parms_ebm()
-        takj_pi = erf_pi / irm.parms['lamb'] * akj
+        takj_pi = erf_pi / irm.parms.lamb * akj
         y0 = [takj_pi.ravel()]
 
         if ocean is not None:
             tas_pi = takj_pi.sum(axis=1)[0]
             catm_pi = (
-                cco2_pi_ocean - ocean.parms['cco2_pi']
-            ) / ocean.parms['alphaa']
+                cco2_pi_ocean - ocean.parms.cco2_pi
+            ) / ocean.parms.alphaa
 
-            hls = ocean.parms['hls']
+            hls = ocean.parms.hlk[0]
             coc0_pi = ocean.partit_inv(catm_pi, hls, tas_pi)
-            coc_pi = np.array(
-                [ocean.parms['hl1'], ocean.parms['hl2'], ocean.parms['hl3']]
-            ) / hls * (coc0_pi - catm_pi)
+            # coc_pi = np.array(
+            #     [ocean.parms['hl1'], ocean.parms['hl2'], ocean.parms['hl3']]
+            # ) / hls * (coc0_pi - catm_pi)
+            coc_pi = ocean.parms.hlk[1:] / hls * (coc0_pi - catm_pi)
             ctot_pi = coc0_pi + coc_pi.sum()
             coct_pi =  ctot_pi - catm_pi
             y0.append(coc_pi)
 
             if land is not None:
-                cbs_pi0 = (
-                    land.parms['fnpp0'] * land.parms['amp']
-                    * land.parms['tau']**2
-                )
+                cbs_pi0 = land.parms.fnpp0 * land.parms.amp * land.parms.tau**2
                 fert = land.fertmm(catm_pi)
                 tau_l = land.get_tau(tas_pi)
-                cbs_pi = fert * land.parms['amp'] * tau_l**2
+                cbs_pi = fert * land.parms.amp * tau_l**2
                 ctot_pi = ctot_pi + (cbs_pi - cbs_pi0).sum()
                 y0.append(cbs_pi)
 
@@ -434,6 +512,7 @@ class Driver:
             self._func_cdrv, t_span, y0, t_eval=time,
             max_step=1., first_step=1.)
         sol_y = sol.y
+        self.savedata = {'y_last': np.array(sol_y[:, -1])}
 
         tak = sol_y[:nl*nl, :].reshape((nl, nl, -1)).sum(axis=1)
         # - takj_pi.sum(axis=1).reshape((nl, -1))
@@ -447,7 +526,7 @@ class Driver:
                 for i in range(len(time))]
             ydot = np.array(ydot)
 
-            catm = (cco2 - ocean.parms['cco2_pi']) / ocean.parms['alphaa']
+            catm = (cco2 - ocean.parms.cco2_pi) / ocean.parms.alphaa
             coc = np.array(
                 [ocean.partit_inv(catm[i], hls, tak[0, i])
                  for i in range(len(catm))])
@@ -461,12 +540,80 @@ class Driver:
                 cbsf = ydot[:, n0:n0+4].sum(axis=1)
                 cbst = cbs.sum(axis=0)
                 ctot = ctot + cbst
-                ret.update(cbst=cbst, cbsf=cbsf)
+                ret.update(cbst=cbst, cbsf=cbsf, cbs=cbs)
 
             eco2 = ndiff_l3(ctot, self.dt, f0e=ctot_pi)
             cocf = ndiff_l3(coct, self.dt, f0e=coct_pi)
 
             ret.update(eco2=eco2, catm=catm, coct=coct, cocf=cocf, ctot=ctot)
+
+        if ocean is not None:
+            self.savedata.update({
+                'ctot_last1': ctot[-2],
+                'coct_last1': coct[-2],
+            })
+
+        return ret
+
+    def run_cdrv_restart(self, **kw):
+        savedata = self.savedata
+
+        time = self.time
+        cco2 = self.cco2
+        irm = self.irm
+        ocean = self.ocean
+        land = self.land
+
+        nl = len(irm.parms.tauj)
+        lambk, xik, akj = irm.get_parms_ebm()
+
+        t_span = (time[0], time[-1])
+        sol = solve_ivp(
+            self._func_cdrv, t_span, savedata['y_last'], t_eval=time,
+            max_step=1., first_step=1.)
+        sol_y = sol.y
+        self.savedata = {'y_last': np.array(sol_y[:, -1])}
+
+        tak = sol_y[:nl*nl, :].reshape((nl, nl, -1)).sum(axis=1)
+
+        ret = {'cco2': cco2, 'tak': tak}
+
+        if ocean is not None:
+            n0 = nl*nl
+            ydot = [
+                self._func_cdrv(time[i], sol_y[:, i])
+                for i in range(len(time))]
+            ydot = np.array(ydot)
+
+            catm = (cco2 - ocean.parms.cco2_pi) / ocean.parms.alphaa
+            hls = ocean.parms.hlk[0]
+            coc = np.array(
+                [ocean.partit_inv(catm[i], hls, tak[0, i])
+                 for i in range(len(catm))])
+            coc = np.vstack([coc - catm, sol_y[n0:n0+3, :]])
+            coct = coc.sum(axis=0)
+            ctot = catm + coct
+
+            if land is not None:
+                n0 = n0 + 3
+                cbs_pi0 = land.parms.fnpp0 * land.parms.amp * land.parms.tau**2
+                cbs = sol_y[n0:n0+4, :] - cbs_pi0.reshape((4, 1))
+                cbsf = ydot[:, n0:n0+4].sum(axis=1)
+                cbst = cbs.sum(axis=0)
+                ctot = ctot + cbst
+                ret.update(cbst=cbst, cbsf=cbsf, cbs=cbs)
+
+            f0e = (3.*savedata['ctot_last1'] + 6.*ctot[0] - ctot[1]) / 8.
+            eco2 = ndiff_l3(ctot, self.dt, f0e=f0e)
+            f0e = (3.*savedata['coct_last1'] + 6.*coct[0] - coct[1]) / 8.
+            cocf = ndiff_l3(coct, self.dt, f0e=f0e)
+
+            ret.update(eco2=eco2, catm=catm, coct=coct, cocf=cocf, ctot=ctot)
+
+            self.savedata.update({
+                'ctot_last1': ctot[-2],
+                'coct_last1': coct[-2],
+            })
 
         return ret
 
@@ -490,7 +637,7 @@ class Driver:
         """
         lamb = self.irm_lamb
         akj = self.irm_akj
-        tauj = self.irm.parms['tauj']
+        tauj = self.irm.parms.tauj
 
         ocean = self.ocean
         land = self.land
@@ -510,23 +657,31 @@ class Driver:
             cbs = np.array(y[n0:n0+4])
 
         tas = takj[0, :].sum()
-        hls = ocean.parms['hls']
+        hls = ocean.parms.hlk[0]
 
         catm = ocean.partit(coc[0], hls, tas)
         coc[0] -= catm
         cocdot = -np.dot(ocean.msyst, coc)
         cocdot[0] += eco2
 
+        if self.bgc_mode == 'land_only':
+            cocdot[:] = 0.
+
         if self.land is not None:
             fert = land.fertmm(catm)
             tau_l = land.get_tau(tas)
-            cbsdot = -cbs/tau_l + fert*land.parms['amp']*tau_l
+            cbsdot = -cbs/tau_l + fert * land.parms.amp * tau_l
+
+            if self.bgc_mode == 'ocean_only':
+                cbsdot[:] = 0.
+
             cocdot[0] -= cbsdot.sum()
 
-        cco2 = catm * ocean.parms['alphaa'] + ocean.parms['cco2_pi']
+        cco2 = catm * ocean.parms.alphaa + ocean.parms.cco2_pi
         erf = self.forcing.c2erf(cco2) + erf_nonco2
 
         ydot = [(erf/lamb * akj / tauj - takj / tauj).ravel(), cocdot]
+
         if self.land is not None:
             ydot.append( cbsdot )
 
@@ -557,11 +712,11 @@ class Driver:
         irm = self.irm
         ocean = self.ocean
 
-        nl = len(irm.parms['tauj'])
+        nl = len(irm.parms.tauj)
         lambk, xik, akj = irm.get_parms_ebm()
         takj_pi = np.full_like(akj, 0.)
 
-        hls = ocean.parms['hls']
+        hls = ocean.parms.hlk[0]
         coc_pi = np.zeros(4)
         coct_pi = 0.
 
@@ -569,7 +724,7 @@ class Driver:
 
         if self.land is not None:
             lparms = self.land.parms
-            cbs_pi0 = lparms['fnpp0'] * lparms['amp'] * lparms['tau']**2
+            cbs_pi0 = lparms.fnpp0 * lparms.amp * lparms.tau**2
             y0 = np.hstack([y0, cbs_pi0])
 
         if erf_nonco2_pi != 0.:
@@ -600,11 +755,17 @@ class Driver:
             self.interp['eco2'] = interp_eco2
             self.interp['erf_nonco2'] = interp_erf_nonco2
 
-        y0[nl*nl] += frac_init_eco2 * self.interp['eco2'](time[0])
+        # initial coc[0]
+        if kw.get('init_pulse') is not None:
+            y0[nl*nl] += kw.get('init_pulse')
+        else:
+            y0[nl*nl] += frac_init_eco2 * self.interp['eco2'](time[0])
 
         t_span = (time[0], time[-1])
         sol = solve_ivp(self._func_edrv, t_span, y0, t_eval=time, max_step=1.)
         sol_y = sol.y
+        self.savedata = {'y_last': np.array(sol_y[:, -1])}
+
         nt = sol_y.shape[1]
         ydot = [self._func_edrv(time[i], sol_y[:, i]) for i in range(nt)]
         ydot = np.array(ydot)
@@ -619,10 +780,15 @@ class Driver:
             cbs = sol_y[n0:n0+4, :] - cbs_pi0.reshape((4, 1))
             cbsf = ydot[:, n0:n0+4].sum(axis=1)
 
-        catm = np.array(
-            [ocean.partit(coc[0, i], hls, tak[0, i]) for i in range(nt)])
-        coc[0, :] -= catm
-        cco2 = catm * ocean.parms['alphaa'] + ocean.parms['cco2_pi']
+        if self.bgc_mode == 'land_only':
+            catm = coc[0, :].copy()
+            coc[0, :] = 0.
+        else:
+            catm = np.array(
+                [ocean.partit(coc[0, i], hls, tak[0, i]) for i in range(nt)])
+            coc[0, :] -= catm
+
+        cco2 = catm * ocean.parms.alphaa + ocean.parms.cco2_pi
 
         coct = coc.sum(axis=0)
         cocf = ndiff_l3(coct, self.dt, f0e=coct_pi)
@@ -642,14 +808,108 @@ class Driver:
             'tak': tak,
         }
         if self.land is not None:
-            ret.update(cbst=cbst, cbsf=cbsf)
+            ret.update(cbst=cbst, cbsf=cbsf, cbs=cbs)
 
         if len(eco2) == len(time):
             ret['eco2'] = eco2
         else:
             ret['eco2'] = self.interp['eco2'](time)
 
+        if ocean is not None:
+            self.savedata.update({
+                'ctot_last1': ctot[-2],
+                'coct_last1': coct[-2],
+            })
+
         return ret
+
+    def run_edrv_restart(self, **kw):
+        savedata = self.savedata
+
+        time = self.time
+        eco2 = self.eco2
+        irm = self.irm
+        ocean = self.ocean
+        land = self.land
+
+        t_span = (time[0], time[-1])
+        y0 = savedata['y_last']
+        sol = solve_ivp(self._func_edrv, t_span, y0, t_eval=time, max_step=1.)
+        sol_y = sol.y
+        self.sol_y = sol_y
+        self.savedata = {'y_last': np.array(sol_y[:, -1])}
+
+        nt = sol_y.shape[1]
+        ydot = [self._func_edrv(time[i], sol_y[:, i]) for i in range(nt)]
+        ydot = np.array(ydot)
+
+        nl = len(irm.parms.tauj)
+        tak = sol_y[:nl*nl, :].reshape((nl, nl, -1)).sum(axis=1)
+        n0 = nl*nl
+
+        coc = sol_y[n0:n0+4, :]
+
+        if land is not None:
+            lparms = land.parms
+            cbs_pi0 = lparms.fnpp0 * lparms.amp * lparms.tau**2
+
+            n0 = n0 + 4
+            cbs = sol_y[n0:n0+4, :] - cbs_pi0.reshape((4, 1))
+            cbsf = ydot[:, n0:n0+4].sum(axis=1)
+
+        hls = ocean.parms.hlk[0]
+        catm = np.array(
+            [ocean.partit(coc[0, i], hls, tak[0, i]) for i in range(nt)])
+        coc[0, :] -= catm
+        cco2 = catm * ocean.parms.alphaa + ocean.parms.cco2_pi
+
+        coct = coc.sum(axis=0)
+        # cocf = ndiff_l3(coct, self.dt, f0e=coct_pi)
+        f0e = (3.*savedata['coct_last1'] + 6.*coct[0] - coct[1]) / 8.
+        cocf = ndiff_l3(coct, self.dt, f0e=f0e)
+
+        if land is not None:
+            cbst = cbs.sum(axis=0)
+            ctot = catm + coct + cbst
+        else:
+            ctot = catm + coct
+
+        ret = {
+            'cco2': cco2,
+            'catm': catm,
+            'coct': coct,
+            'ctot': ctot,
+            'cocf': cocf,
+            'tak': tak,
+        }
+        if land is not None:
+            ret.update(cbst=cbst, cbsf=cbsf, cbs=cbs)
+
+        if len(eco2) == len(time):
+            ret['eco2'] = eco2
+        else:
+            ret['eco2'] = self.interp['eco2'](time)
+
+        self.savedata.update({
+            'ctot_last1': ctot[-2],
+            'coct_last1': coct[-2],
+        })
+
+        return ret
+
+    def convert_savedata_c2e(self, savedata, cco2, tas):
+        ocean = self.ocean
+        catm = (cco2 - ocean.parms.cco2_pi) / ocean.parms.alphaa
+        coc0 = ocean.partit_inv(catm, ocean.parms.hlk[0], tas)
+
+        y = savedata['y_last']
+        nl = len(self.irm.parms.tauj)
+        n = nl*nl
+        return {
+            'y_last': np.hstack([y[:n], coc0, y[n:]]),
+            'ctot_last1': savedata['ctot_last1'],
+            'coct_last1': savedata['coct_last1'],
+        }
 
     def run(self, outform=None, irm_only=False, **kw):
         """
@@ -680,13 +940,21 @@ class Driver:
             ret = self.run_irm(**kw)
         else:
             if hasattr(self, 'cco2'):
-                ret = self.run_cdrv(**kw)
+                if self.restart:
+                    ret = self.run_cdrv_restart(**kw)
+                else:
+                    ret = self.run_cdrv(**kw)
             else:
-                ret = self.run_edrv(**kw)
+                if self.restart:
+                    ret = self.run_edrv_restart(**kw)
+                else:
+                    ret = self.run_edrv(**kw)
 
         erf = self.forcing.c2erf(ret['cco2'])
+        ret['erf|CO2'] = erf
         if hasattr(self, 'erf_nonco2'):
-            erf += self.erf_nonco2
+            erf = erf + self.erf_nonco2
+            ret['erf|non-CO2'] = self.erf_nonco2
 
         lambk, xik, akj = self.irm.get_parms_ebm()
         thc = (ret['tak'] * xik.reshape((-1, 1))).sum(axis=0)
@@ -742,7 +1010,7 @@ class Driver:
         # Retrieve data for given variables
         dfx = []
         for name in kw.get('variables', list(self.ret)):
-            if name in ['tak']:
+            if name in ['tak', 'cbs']:
                 for k in range(self.ret[name].shape[0]):
                     namek = f'{name}[{k}]'
                     dfx.append((namek, self.ret[name][k]))
@@ -750,10 +1018,10 @@ class Driver:
                         long_name='{} in layer {}'.format(
                             self.variables[name].long_name, k))
 
-            elif name == 'erf|CO2':
-                dfx.append((name, self.forcing.c2erf(self.ret['cco2'])))
+            # elif name == 'erf|CO2':
+            #     dfx.append((name, self.forcing.c2erf(self.ret['cco2'])))
 
-            elif name.startswith('erf|'):
+            elif name.startswith('erf|') and name not in ['erf|CO2', 'erf|non-CO2']:
                 if name[4:] in self.df_erf.index:
                     dfx.append(
                         (name, self.df_erf.loc[name[4:], self.time].values))
@@ -822,11 +1090,11 @@ class Driver:
                 with a realized warming fraction at doubling time point
                 along a 1%-per-year CO2 increase pathway.
         """
-        alpha = kw.get('alpha', self.forcing.parms['alpha'])
-        beta = kw.get('beta', self.forcing.parms['beta'])
-        asj = kw.get('asj', self.irm.parms['asj'])
-        tauj = kw.get('tauj', self.irm.parms['tauj'])
-        lamb = kw.get('lamb', self.irm.parms['lamb'])
+        alpha = kw.get('alpha', self.forcing.parms.alpha)
+        beta = kw.get('beta', self.forcing.parms.beta)
+        asj = kw.get('asj', self.irm.parms.asj)
+        tauj = kw.get('tauj', self.irm.parms.tauj)
+        lamb = kw.get('lamb', self.irm.parms.lamb)
 
         t70 = np.log(2.) / np.log(1.01)
         rwf = 1 - (asj*tauj*(1-np.exp(-t70/tauj))).sum() / t70
