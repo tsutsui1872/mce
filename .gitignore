@@ -3,3 +3,4 @@ __pycache__/
 .ipynb_checkpoints/
 mce/data/preproc1
 mce/data/preproc2
+data/ar6-ch7
