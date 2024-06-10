@@ -62,7 +62,9 @@ class RfAll(RfAllBase):
 
         df = [
             dfin.loc[[('CO2', 'ppm')]].transform(
-                getattr(self, co2_method), axis=1, **kw_co2),
+                # getattr(self, co2_method), axis=1, **kw_co2),
+                c2erf, axis=1, **kw_co2,
+            ),
             dfin.loc[[('CH4', 'ppb')]].transform(
                 cm2erf, axis=1,
                 cn2o=dfin.loc[('N2O', 'ppb')],
