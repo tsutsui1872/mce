@@ -3,10 +3,9 @@ import pandas as pd
 import matplotlib as mpl
 from cycler import cycler
 
-from . import __name__ as module_name
 from .. import get_logger
 
-logger = get_logger(module_name)
+logger = get_logger(__name__)
 
 def mk_map_colors(*args):
     return {
@@ -164,26 +163,13 @@ def plot_quantile_range(myplt, dfin, **kw):
     ]
     labels = member_order + ['', 'Central', 'likely (66%)', 'very likely (90%)']
 
-    # pos = myplt.get_fig_coords_axes()
     kw_legend = kw.get('kw_legend', {
         'loc': 'upper left',
-        'bbox_to_anchor': myplt.get_fig_position_relto_axes((1.07, 0.98)),
+        'bbox_to_anchor': (1.07, 0.98),
     })
-
-    # if 'kw_legend' not in kw:
-    #     kw_legend = {'loc': 'default'}
-    # elif callable(kw['kw_legend']):
-    #     kw_legend = kw['kw_legend'](pos)
-    # else:
-    #     kw_legend = kw['kw_legend'].copy()
-
-    # if kw_legend['loc'] == 'default':
-    #     kw_legend['loc'] = 'upper left'
-    #     kw_legend['bbox_to_anchor'] = (
-    #         pos['right']+(pos['right']-pos['left'])*0.07,
-    #         pos['top']-(pos['top']-pos['bottom'])*0.02,
-    #     )
-
+    kw_legend['bbox_to_anchor'] = myplt.get_fig_position_relto_axes(
+        kw_legend['bbox_to_anchor'],
+    )
     myplt.figure.legend(handles, labels, **kw_legend)
 
 
