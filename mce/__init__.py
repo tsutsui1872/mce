@@ -28,3 +28,5 @@ def get_logger(name):
 class MCEExecError(Exception):
     pass
 
+class MCECalibError(Exception):
+    pass

@@ -5,7 +5,8 @@ Joos et al. (1996, https://doi.org/10.3402/tellusb.v48i3.15921).
 """
 
 import numpy as np
-from .. import MCEExecError
+from numpy.linalg import LinAlgError
+from .. import MCECalibError
 from . import ParmsBase
 from . import ModelBase
 
@@ -416,6 +417,7 @@ class ModelOcean(ModelBase):
         amp = kw.get('amp', self.parms.amp_ref)
         x0 = kw.get('x0', [1000., 1000., 10., 10., 10.])
         xtol = kw.get('xtol', 1e-10)
+        outtol = 1e-10
 
         tau = np.array(tau)
         amp = np.array(amp)
@@ -428,8 +430,11 @@ class ModelOcean(ModelBase):
             method='hybr', options={'xtol': xtol},
         )
         if not sol.success:
-            print(sol)
-            raise MCEExecError('Root finding failed')
+            raise MCECalibError(sol.message)
+        elif (sol.fun * sol.fun).sum() > outtol:
+            raise MCECalibError('solution may not converged')
+        elif np.any(sol.x < 0.):
+            raise MCECalibError('negative solution found')
 
         hlk = np.hstack([hl0 * amp[4], 0., sol.x[:2]])
         # hlk[0] contains hls
@@ -441,9 +446,6 @@ class ModelOcean(ModelBase):
         hlk[1] = hl0 * (1./af - 1.) - (hlk[2] + hlk[3])
 
         etak = sol.x[2:]
-
-        # ret = {f'hl{i}': hl[i] for i in [1, 2, 3]}
-        # ret.update({f'eta{i}': eta[i-1] for i in [1, 2, 3]})
 
         return hlk, etak
 
@@ -463,7 +465,7 @@ class ModelOcean(ModelBase):
         eigval_i = np.imag(eigval)
         epsm = 1e-7
         if np.any(eigval_i * eigval_i > epsm):
-            raise MCEExecError('eigval_i is too large')
+            raise MCECalibError('complex eigenvalues')
         
         eigval = np.real(eigval)
         eigvec = np.real(eigvec)
@@ -473,7 +475,13 @@ class ModelOcean(ModelBase):
         eigvec = eigvec[:, idx]
 
         epulse = np.hstack([1., np.zeros(3)])
-        rk = np.linalg.solve(eigvec, epulse)
+        try:
+            rk = np.linalg.solve(eigvec, epulse)
+        except LinAlgError as e:
+            raise MCECalibError('linalg error {}'.format(e))
+        except:
+            raise MCECalibError('linalg other error')
+
         ak_r = rk * eigvec[0, :] / epulse[0]
 
         return np.hstack([
