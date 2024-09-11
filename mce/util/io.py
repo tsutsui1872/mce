@@ -3,13 +3,13 @@ Utility for handling data files
 """
 import pathlib
 import urllib.request
+from datetime import datetime
 import pandas as pd
 import netCDF4
 
-from . import __name__ as module_name
 from .. import get_logger
 
-logger = get_logger(module_name)
+logger = get_logger(__name__)
 
 def read_url(url, decode=True, queries={}):
     """Read internet resource contents
@@ -59,9 +59,14 @@ def retrieve_url(path, url):
     """
     path = pathlib.Path(path)
 
-    if not path.exists():
+    if path.exists():
+        logger.info('Use local file {} retrieved from {} on {}'.format(
+            path.as_posix(), url,
+            datetime.fromtimestamp(path.stat().st_mtime).strftime('%Y-%m-%d'),
+        ))
+    else:
+        logger.info(f'Retrieve {url}')
         ret = read_url(url, decode=False)
-        logger.info(f'Retrieved from {url}')
 
         if not path.parent.is_dir():
             path.parent.mkdir(parents=True)
@@ -105,11 +110,14 @@ class RetrieveGitHub:
         """
         owner = self.owner
         repo = self.repo
+        path_local = self.path_local_dir.joinpath(owner, repo, path)
 
-        return retrieve_url(
-            self.path_local_dir.joinpath(owner, repo, path),
-            f'https://github.com/{owner}/{repo}/raw/main/{path}',
-        )
+        # allow space character
+        path = urllib.parse.quote(path)
+        url = f'https://github.com/{owner}/{repo}/raw/main/{path}'
+
+        return retrieve_url(path_local, url)
+
 
 def read_ncfile(path, *args, **kw):
     """
