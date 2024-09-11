@@ -4,9 +4,7 @@ MCE core API
 
 import numpy as np
 
-from . import __name__ as module_name
 from .. import MCEExecError
-from .. import get_logger
 
 class ParmsBase:
     """
@@ -82,7 +80,6 @@ class ParmsBase:
 
 class ModelBase(object):
     def __init__(self, *args, **kw):
-        self.logger = get_logger(module_name)
         self.parms = None
         self.init_process(*args, **kw)
 

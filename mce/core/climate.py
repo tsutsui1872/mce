@@ -4,9 +4,11 @@ response model.
 """
 
 import numpy as np
-from .. import MCEExecError
+from .. import MCEExecError, get_logger
 from . import ParmsBase
 from . import ModelBase
+
+logger = get_logger(__name__)
 
 class IrmParms(ParmsBase):
     def __init__(self, nl=3):
@@ -56,7 +58,7 @@ class IrmBase(ModelBase):
         nl = len(args) > 0 and args[0] or 3
         if nl not in [2, 3]:
             mesg = 'invalid number of layers {}'.format(nl)
-            self.logger.error(mesg)
+            logger.error(mesg)
             raise MCEExecError(mesg)
 
         self.parms = IrmParms(nl)
@@ -169,7 +171,7 @@ class IrmBase(ModelBase):
 
         nl = len(tauj)
         if nl not in [2, 3]:
-            self.logger.error('invalid number of layers {}'.format(nl))
+            logger.error('invalid number of layers {}'.format(nl))
             raise MCEExecError
 
         xitot = (asj*tauj).sum() * lamb
@@ -263,7 +265,7 @@ class IrmBase(ModelBase):
             ])
         else:
             mesg = 'invalid number of layers {}'.format(nl)
-            self.logger.error(mesg)
+            logger.error(mesg)
             raise MCEExecError(mesg)
 
         eigval, eigvec = np.linalg.eig(msyst)
@@ -311,7 +313,7 @@ class IrmBase(ModelBase):
             Full-layer amplitudes 'akj' can be used instead of `asj`.
         """
         if variable not in ['tres', 'flux', 'heat']:
-            self.logger.error('invalid variable {}'.format(variable))
+            logger.error('invalid variable {}'.format(variable))
             raise MCEExecError
 
         parms = self.parms

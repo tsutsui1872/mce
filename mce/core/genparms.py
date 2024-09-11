@@ -5,8 +5,10 @@ API for model parameter generation.
 import numpy as np
 import pandas as pd
 import scipy.stats
-from mce import MCEExecError, get_logger
-from mce.util.stat import PcaBase
+from .. import get_logger
+from ..util.stat import PcaBase
+
+logger = get_logger(__name__)
 
 class PcaParmsCmip(PcaBase):
     """
@@ -28,7 +30,6 @@ class PcaParmsCmip(PcaBase):
         self.names = names
         self.names_log = kw.get('names_log', [])
         self.dataset_excl = kw.get('dataset_excl', [])
-        self.logger = get_logger('mce')
 
     def _preproc(self, dfin):
         """
@@ -148,7 +149,7 @@ class PcaParmsCmip(PcaBase):
             schk = self.get_score_ref(2, **{ev: [-1., 1.]})
             pchk = self.synthesis(schk)
             if pchk.loc[0, 'ecs'] > pchk.loc[1, 'ecs']:
-                self.logger.info('{} reversed'.format(ev))
+                logger.info('{} reversed'.format(ev))
                 self.eigvec[ev] = -self.eigvec[ev]
                 score[ev] = -score[ev]
 

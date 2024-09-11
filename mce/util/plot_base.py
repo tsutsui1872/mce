@@ -3,10 +3,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from cycler import cycler
 
-from . import __name__ as module_name
 from .. import get_logger
 
-logger = get_logger(module_name)
+logger = get_logger(__name__)
 
 class PlotSpace:
     """Create a figure object that contains multiple Axes

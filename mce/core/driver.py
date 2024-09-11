@@ -13,6 +13,8 @@ from .forcing import RfAll as RfAllBase
 from .climate import IrmBase
 from .carbon import ModelOcean, ModelLand
 
+logger = get_logger(__name__)
+
 class RfAll(RfAllBase):
     def ghg_concentrations_to_forcing(self, dfin, co2_method=None, agg_minor=False):
         """
@@ -220,15 +222,14 @@ class Driver:
             kw_irm={}, kw_rfall={}, kw_ocean={}, kw_land={},
             bgc_mode='none',
     ):
-        self.logger = get_logger('mce')
         if cco2 is None and eco2 is None:
             mesg = 'cco2 or eco2 should be given'
-            self.logger.error(mesg)
+            logger.error(mesg)
             raise MCEExecError(mesg)
 
         if bgc_mode not in ['none', 'both', 'ocean_only', 'land_only']:
             mesg = f'invalid bgc_mode {bgc_mode}'
-            self.logger.error(mesg)
+            logger.error(mesg)
             raise MCEExecError(mesg)
 
         self.irm = IrmBase(**kw_irm)
@@ -1028,7 +1029,7 @@ class Driver:
                     dfx.append(
                         (name, self.df_erf.loc[name[4:], self.time].values))
                 else:
-                    self.logger.warning(f'{name} is not defined')
+                    logger.warning(f'{name} is not defined')
 
             else:
                 dfx.append((name, self.ret[name]))
