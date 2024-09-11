@@ -74,7 +74,7 @@ class RfCO2(ModelBase):
         """
         ccref = self.parms.ccref
         erf = self.xl2erf(np.log(np.hstack(args)/ccref))
-        return erf.item() if len(erf)==1 else erf
+        return erf
 
     def x2erf(self, *args):
         """
@@ -87,7 +87,7 @@ class RfCO2(ModelBase):
             Effective radiative forcing in W/m2
         """
         erf = self.xl2erf(np.log(np.hstack(args)))
-        return erf.item() if len(erf)==1 else erf
+        return erf
 
     def xl2erf(self, *args):
         """
