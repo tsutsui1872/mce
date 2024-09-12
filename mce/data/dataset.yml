@@ -1,13 +1,7 @@
-rootpath:
-  CMIP5: /home/tsutsui/data/CMIP5
-  CMIP6: /home/tsutsui/data/CMIP6
-
 # branch_year:
 #   year in piControl from which a different experiment branches
 
 CMIP5:
-  input_dir: '[exp][frequency][dataset]'
-  input_file: '[short_name]_[mip]_[dataset]_[exp]_[ensemble]_*.nc'
   source:
     ACCESS1-0:
       # to be renamed to ACCESS1.0
@@ -251,10 +245,6 @@ CMIP5:
         branch_year: 700
 
 CMIP6:
-  input_dir: '[dataset][exp]'
-  input_file: [
-    '[short_name]_[mip]_[dataset]_[exp]_[ensemble]_*.nc',
-    '[short_name]_[mip]_[exp]_[dataset]_[ensemble]_*.nc']
   source:
     ACCESS-CM2:
       piControl:
@@ -356,6 +346,20 @@ CMIP6:
       1pctCO2:
         ensemble: r1i1p1f1
         branch_year: 301
+    CIESM:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+      1pctCO2:
+        ensemble: r1i1p1f1
+    CMCC-CM2-SR5:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+      1pctCO2:
+        ensemble: r1i1p1f1
     CNRM-CM6-1:
       piControl:
         ensemble: r1i1p1f2
@@ -503,6 +507,13 @@ CMIP6:
       1pctCO2:
         ensemble: r1i1p1f3
         branch_year: 1850
+    IITM-ESM:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+      1pctCO2:
+        ensemble: r1i1p1f1
     INM-CM4-8:
       piControl:
         ensemble: r1i1p1f1
@@ -577,6 +588,13 @@ CMIP6:
       1pctCO2:
         ensemble: r1i1p1f1
         branch_year: 550
+    NorCPM1:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+      1pctCO2:
+        ensemble: r1i1p1f1
     NorESM2-LM:
       piControl:
         ensemble: r1i1p1f1
@@ -604,6 +622,15 @@ CMIP6:
       1pctCO2:
         ensemble: r1i1p1f1
         branch_year: 274
+    TaiESM1:
+      piControl:
+        ensemble: r1i1p1f1
+      abrupt-4xCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1201 # assume branched at the first year of piControl
+      1pctCO2:
+        ensemble: r1i1p1f1
+        branch_year: 1201 # assume branched at the first year of piControl
     UKESM1-0-LL:
       piControl:
         ensemble: r1i1p1f2
