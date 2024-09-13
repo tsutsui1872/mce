@@ -3,8 +3,8 @@
 
 CMIP5:
   source:
-    ACCESS1-0:
-      # to be renamed to ACCESS1.0
+    ACCESS1.0:
+      fname: ACCESS1-0
       piControl:
         ensemble: r1i1p1
       abrupt4xCO2:
@@ -13,8 +13,8 @@ CMIP5:
       1pctCO2:
         ensemble: r1i1p1
         branch_year: 300
-    ACCESS1-3:
-      # to be renamed to ACCESS1.3
+    ACCESS1.3:
+      fname: ACCESS1-3
       piControl:
         ensemble: r1i1p1
       abrupt4xCO2:
@@ -23,8 +23,9 @@ CMIP5:
       1pctCO2:
         ensemble: r1i1p1
         branch_year: 250
-    bcc-csm1-1:
-      # to be renamed to BCC-CSM1.1
+    BCC-CSM1.1:
+      fname: bcc-csm1-1
+      # to be renamed to 
       # metadata branch_time may have wrong units
       piControl:
         ensemble: r1i1p1
@@ -63,8 +64,8 @@ CMIP5:
       1pctCO2:
         ensemble: r1i1p1
         branch_year: 1850
-    CSIRO-Mk3-6-0:
-      # to be renamed to CSIRO-Mk3.6.0
+    CSIRO-Mk3.6.0:
+      fname: CSIRO-Mk3-6-0
       piControl:
         ensemble: r1i1p1
       abrupt4xCO2:
@@ -150,8 +151,8 @@ CMIP5:
       1pctCO2:
         ensemble: r1i1p1
         branch_year: 1860
-    inmcm4:
-      # to be renamed to INM-CM4
+    INM-CM4:
+      fname: inmcm4
       piControl:
         ensemble: r1i1p1
       abrupt4xCO2:
