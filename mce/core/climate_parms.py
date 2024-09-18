@@ -3,6 +3,7 @@ API for diagnosing forcing-response parameters.
 """
 
 import numpy as np
+import pandas as pd
 from lmfit import Parameters, minimize
 from .forcing import RfCO2
 from .climate import IrmBase
@@ -201,3 +202,286 @@ class ParmEstimate(object):
         self.ret_minimize = ret
 
         return alpha, beta, lamb, asj, tauj
+
+
+def get_rwf_ramp(dfin, tp):
+    """Get realized warming fractions
+    when the forcing increases linearly
+
+    Parameters
+    ----------
+    df
+        Input parameters in dict, Series, or DataFrame
+
+    Returns
+    -------
+        Realized warming fractions in the same format as in the input
+    """
+    if isinstance(dfin, (dict, pd.Series)):
+        df = pd.DataFrame([dfin])
+    else:
+        df = dfin
+
+    nl = 3 if 'tau2' in df else 2
+
+    tp = np.hstack([tp])
+    asj = df[[f'a{j}' for j in range(nl)]].values[:, :, None]
+    tauj = df[[f'tau{j}' for j in range(nl)]].values[:, :, None]
+
+    ret = pd.DataFrame(
+        1. -
+        (asj * tauj * (1 - np.exp(-tp[None, None, :]/tauj)))
+        .sum(axis=1)
+        / tp[None, :],
+        index=df.index, columns=tp,
+    )
+
+    # if len(tp) == 1:
+    #     rwf = rwf.squeeze(axis=1).rename(None)
+    if isinstance(dfin, dict):
+        ret = ret.squeeze(axis=0).to_dict()
+    elif isinstance(dfin, pd.Series):
+        ret = ret.squeeze(axis=0).rename(dfin.name)
+
+    return ret
+
+
+def get_amp_full(dfin):
+    """Derive sub-surface amplitude parameters
+    from impulse response parameters based on the Laplace transform
+    of the energy balance equations
+
+    Parameters
+    ----------
+    df
+        Input parameters in dict, Series, or DataFrame
+
+    Returns
+    -------
+        Derived parameters in the same format as in the input
+    """
+    if isinstance(dfin, (dict, pd.Series)):
+        df = pd.DataFrame([dfin])
+    else:
+        df = dfin
+
+    nl = 3 if 'tau2' in df else 2
+
+    asj = df[[f'a{j}' for j in range(nl)]].values
+    tauj = df[[f'tau{j}' for j in range(nl)]].values
+    lamb = df['lambda'].values
+
+    xitot = (asj*tauj).sum(axis=1) * lamb
+    xis = lamb / (asj/tauj).sum(axis=1)
+
+    if nl == 2:
+        a1j = (
+            np.array([-tauj[:, 0], tauj[:, 1]])
+            / (tauj[:, 1] - tauj[:, 0])
+        ).T
+        # errors are negligible, but ensure accurate normalization
+        a1j = a1j / a1j.sum(axis=1)[:, None]
+
+        ret = pd.DataFrame({
+            'a10': a1j[:, 0],
+            'a11': a1j[:, 1],
+        }, index=df.index)
+
+    else:
+        lamb1 = (asj/(tauj*tauj)).sum(axis=1) / lamb * xis * xis - lamb
+        x2 = tauj.sum(axis=1) - (xitot/lamb) - (xitot-xis)/lamb1
+
+        det = tauj[:, 2]/tauj[:, 0] - tauj[:, 1]/tauj[:, 0] \
+            + tauj[:, 0]/tauj[:, 1] - tauj[:, 2]/tauj[:, 1] \
+            + tauj[:, 1]/tauj[:, 2] - tauj[:, 0]/tauj[:, 2]
+        det2 = np.array(
+            [tauj[:, 0]/tauj[:, 1] - tauj[:, 0]/tauj[:, 2],
+                tauj[:, 1]/tauj[:, 2] - tauj[:, 1]/tauj[:, 0],
+                tauj[:, 2]/tauj[:, 0] - tauj[:, 2]/tauj[:, 1]] )
+        det1 = det2 - np.array(
+            [x2/tauj[:, 1] - x2/tauj[:, 2],
+                x2/tauj[:, 2] - x2/tauj[:, 0],
+                x2/tauj[:, 0] - x2/tauj[:, 1]] )
+        a1j = (det1/det).T
+        a2j = (det2/det).T
+
+        # errors are negligible, but ensure accurate normalization
+        a1j = a1j / a1j.sum(axis=1)[:, None]
+        a2j = a2j / a2j.sum(axis=1)[:, None]
+
+        ret = pd.DataFrame({
+            'a10': a1j[:, 0],
+            'a11': a1j[:, 1],
+            'a12': a1j[:, 2],
+            'a20': a2j[:, 0],
+            'a21': a2j[:, 1],
+            'a22': a2j[:, 2],
+        }, index=df.index)
+
+    if isinstance(dfin, dict):
+        ret = ret.squeeze().to_dict()
+    elif isinstance(dfin, pd.Series):
+        ret = ret.squeeze().rename(dfin.name)
+
+    return ret
+
+
+def get_ebm(dfin):
+    """Derive heat transfer coefficients and heat capacities
+    from impulse response parameters based on the Laplace transform
+    of the energy balance equations
+
+    Parameters
+    ----------
+    df
+        Input parameters in dict, Series, or DataFrame
+
+    Returns
+    -------
+        Derived parameters in the same format as in the input
+    """
+    if isinstance(dfin, (dict, pd.Series)):
+        df = pd.DataFrame([dfin])
+    else:
+        df = dfin
+
+    nl = 3 if 'tau2' in df else 2
+
+    asj = df[[f'a{j}' for j in range(nl)]].values
+    tauj = df[[f'tau{j}' for j in range(nl)]].values
+    lamb = df['lambda'].values
+
+    xitot = (asj*tauj).sum(axis=1) * lamb
+    xis = lamb / (asj/tauj).sum(axis=1)
+
+    if nl == 2:
+        xi1 = xitot - xis
+        lamb1 = xis * xi1 / lamb / tauj.prod(axis=1)
+
+        ret = pd.DataFrame({
+            'gamma1': lamb1,
+            'xis': xis,
+            'xi1': xi1,
+        }, index=df.index)
+
+    else:
+        lamb1 = (asj/(tauj*tauj)).sum(axis=1) / lamb * xis * xis - lamb
+        x2 = tauj.sum(axis=1) - (xitot/lamb) - (xitot-xis)/lamb1
+        xi1 = tauj.prod(axis=1) * lamb * lamb1 / (xis * x2)
+        xi2 = xitot - (xis + xi1)
+        lamb2 = xi2 / x2
+
+        ret = pd.DataFrame({
+            'gamma1': lamb1,
+            'gamma2': lamb2,
+            'xis': xis,
+            'xi1': xi1,
+            'xi2': xi2,
+        }, index=df.index)
+
+    if isinstance(dfin, dict):
+        ret = ret.squeeze().to_dict()
+    elif isinstance(dfin, pd.Series):
+        ret = ret.squeeze().rename(dfin.name)
+
+    return ret
+
+
+def ebm2irm(dfin):
+    """Derive impulse response parameters from energy balance model parameters
+
+    Parameters
+    ----------
+    dfin
+        Input parameters in dict, Series, or DataFrame
+
+    Returns
+    -------
+        Derived parameters in the same format as in the input
+    """
+    if isinstance(dfin, (dict, pd.Series)):
+        df = pd.DataFrame([dfin])
+    else:
+        df = dfin
+
+    if 'gamma2' in df:
+        nl = 3
+        zeros = pd.Series(0., index=df.index)
+        msyst = np.array([
+            [
+                (df['lambda'] + df['gamma1']) / df['xis'],
+                - df['gamma1'] / df['xis'],
+                zeros,
+            ],
+            [
+                - df['gamma1'] / df['xi1'],
+                (df['gamma1'] + df['gamma2']) / df['xi1'],
+                - df['gamma2'] / df['xi1'],
+            ],
+            [
+                zeros,
+                - df['gamma2'] / df['xi2'],
+                df['gamma2'] / df['xi2'],
+            ]
+        ])
+        xik = df[['xis', 'xi1', 'xi2']].values
+    else:
+        nl = 2
+        msyst = np.array([
+            [
+                (df['lambda'] + df['gamma1']) / df['xis'],
+                - df['gamma1'] / df['xis'],
+            ],
+            [
+                - df['gamma1'] / df['xi1'],
+                df['gamma1'] / df['xi1'],
+            ],
+        ])
+        xik = df[['xis', 'xi1']].values
+
+    eigval, eigvec = np.linalg.eig(msyst.transpose(2, 0, 1))
+    tauj = 1. / eigval
+
+    def mkdiag(xin):
+        """Construct diagonal matrixes
+        """
+        ndim = xin.shape[1]
+        x = np.zeros(xin.shape + (ndim,))
+        for i in range(ndim):
+            x[:, i, i] = xin[:, i]
+        return x
+
+    akj = np.linalg.solve(
+        eigvec[:, :, :] / eigvec[:, 0:1, :],
+        mkdiag(df['lambda'].values[:, None] / xik),
+    )
+    akj = np.stack([
+        akj[:, j] / eigval[:, j, None] for j in range(nl)
+    ]).transpose(1, 2, 0)
+
+    ret = pd.concat(
+        [
+            pd.DataFrame(
+                tauj,
+                index=df.index,
+                columns=[f'tau{j}' for j in range(nl)],
+            )
+        ]
+        +
+        [
+            pd.DataFrame(
+                akj[:, k],
+                index=df.index,
+                columns=[f'a{k}{j}' for j in range(nl)],
+            )
+            for k in range(akj.shape[1])
+        ],
+        axis=1,
+    ).rename(columns=lambda x: x.replace('a0', 'a'))
+
+    if isinstance(dfin, dict):
+        ret = ret.squeeze().to_dict()
+    elif isinstance(dfin, pd.Series):
+        ret = ret.squeeze().rename(dfin.name)
+
+    return ret

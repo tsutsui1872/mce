@@ -1,0 +1,84 @@
+# units may be given to cf_units.Unit()
+# for which 'no_unit' is acceptable
+
+parameters:
+  forcing:
+    co2_alpha:
+      long_name: Scaling factor of CO2 forcing
+      units: W m-2
+    co2_beta:
+      long_name: Amplification factor of CO2 forcing
+      units: no_unit
+  climate:
+    tau0:
+      long_name: First element of time constants
+      units: year
+    tau1:
+      long_name: Second element of time constants
+      units: year
+    tau2:
+      long_name: Third element of time constants
+      units: year
+    a0:
+      long_name: Fraction of the first time-constant contribution to the surface temperature change
+      units: no_unit
+    a1:
+      long_name: Fraction of the second time-constant contribution to the surface temperature change
+      units: no_unit
+    a2:
+      long_name: Fraction of the third time-constant contribution to the surface temperature change
+      units: no_unit
+    a10:
+      long_name: Fraction of the first time-constant contribution to the first sub-surface temperature change
+      units: no_unit
+    a11:
+      long_name: Fraction of the second time-constant contribution to the first sub-surface temperature change
+      units: no_unit
+    a12:
+      long_name: Fraction of the third time-constant contribution to the first sub-surface temperature change
+      units: no_unit
+    a20:
+      long_name: Fraction of the first time-constant contribution to the second sub-surface temperature change
+      units: no_unit
+    a21:
+      long_name: Fraction of the second time-constant contribution to the second sub-surface temperature change
+      units: no_unit
+    a22:
+      long_name: Fraction of the third time-constant contribution to the second sub-surface temperature change
+      units: no_unit
+    lambda:
+      long_name: Climate feedback parameter
+      units: W m-2 K-1
+    lambda_reg:
+      long_name: Climate feedback parameter based on conventional linear regression
+      units: W m-2 K-1
+    q4x_reg:
+      long_name: 4xCO2 forcing based on conventional linear regression
+      units: W m-2
+    ecs:
+      long_name: Equilibrium climate sensitivity
+      units: K
+    ecs_reg:
+      long_name: Equilibrium climate sensitivity based on conventional linear regression
+      units: K
+    tcr:
+      long_name: Transient climate response
+      units: K
+    tcr_gcm:
+      long_name: Transient climate response by GCM data
+      units: K
+    gamma1:
+      long_name: Coefficient of heat exchange between the surface and first sub-surface layers
+      units: W m-2 K-1
+    gamma2:
+      long_name: Coefficient of heat exchange between the first and second sub-surface layers
+      units: W m-2 K-1
+    xis:
+      long_name: Heat capacity of the surface layer divided by annual total seconds
+      units: J m-2 K-1 s-1
+    xi1:
+      long_name: Heat capacity of the first sub-surface layer divided by annual total seconds
+      units: J m-2 K-1 s-1
+    xi2:
+      long_name: Heat capacity of the second sub-surface layer divided by annual total seconds
+      units: J m-2 K-1 s-1
