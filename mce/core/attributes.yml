@@ -9,6 +9,15 @@ parameters:
     co2_beta:
       long_name: Amplification factor of CO2 forcing
       units: no_unit
+    q2x:
+      long_name: 2xCO2 forcing
+      units: W m-2
+    q4x:
+      long_name: 4xCO2 forcing
+      units: W m-2
+    q4x_reg:
+      long_name: 4xCO2 forcing based on conventional linear regression
+      units: W m-2
   climate:
     tau0:
       long_name: First element of time constants
@@ -52,9 +61,6 @@ parameters:
     lambda_reg:
       long_name: Climate feedback parameter based on conventional linear regression
       units: W m-2 K-1
-    q4x_reg:
-      long_name: 4xCO2 forcing based on conventional linear regression
-      units: W m-2
     ecs:
       long_name: Equilibrium climate sensitivity
       units: K
