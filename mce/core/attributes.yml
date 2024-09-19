@@ -82,3 +82,10 @@ parameters:
     xi2:
       long_name: Heat capacity of the second sub-surface layer divided by annual total seconds
       units: J m-2 K-1 s-1
+    xitot:
+      long_name: Total heat capacity divided by annual total seconds
+      units: J m-2 K-1 s-1
+    xitot_h:
+      long_name: Equivalent ocean depth to the total heat capacity
+      units: m
+
