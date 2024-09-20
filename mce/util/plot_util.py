@@ -2,10 +2,64 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 from cycler import cycler
+import unicodedata
 
 from .. import get_logger
 
 logger = get_logger(__name__)
+
+def unicode_character(name):
+    """
+    Wrapper function for unicodedata.lookup()
+
+    Parameters
+    ----------
+    name : str
+        Name to be looked up by such as
+        - greek small letter alpha
+        - greek capital letter alpha
+        - degree sign
+        - subscript two
+        - superscript two
+
+        Typical words
+        greek: alpha, beta, gamma, delta, epsilon, zeta, eta, theta, iota,
+            kappa, lamda, mu, nu, xi, omicron, pi, rho, sigma, tau, upsilon,
+            phi, chi, psi, omega
+        sign: degree, plus, minus, plus-minus, multiplication, division
+        numeral: zero, one, two, three, four, five, six, seven, eight, nine
+        other: em dash, en dash
+
+    Returns
+    -------
+    char : unicode
+        unicode character for a given name
+    """
+    greek_words = [
+        'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta',
+        'iota', 'kappa', 'lamda', 'mu', 'nu', 'xi', 'omicron', 'pi', 'rho',
+        'sigma', 'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega' ]
+    sign_words = [
+        'degree', 'plus', 'minus', 'plus-minus', 'multiplication', 'division' ]
+    numeral_words = [
+        'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+        'eight', 'nine' ]
+
+    if name in greek_words:
+        name = 'greek small letter {}'.format(name)
+    elif name.lower() in greek_words:
+        name = 'greek capital letter {}'.format(name)
+    elif name in sign_words:
+        name = '{} sign'.format(name)
+    elif name[0] == '_' and name[1:] in numeral_words:
+        name = 'subscript {}'.format(name[1:])
+    elif name[0] == '^' and name[1:] in numeral_words:
+        name = 'superscript {}'.format(name[1:])
+
+    char = unicodedata.lookup(name)
+
+    return char
+
 
 def mk_map_colors(*args):
     return {
