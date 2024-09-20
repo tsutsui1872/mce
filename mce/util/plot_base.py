@@ -221,6 +221,7 @@ class PlotBase:
         colors = cycler(color=self.palettes[palette])
 
         self.rc = {
+            'figure.dpi': 72, # inline figure size smaller
             'axes.prop_cycle': colors,
 
             'font.family': 'sans-serif',
