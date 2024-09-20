@@ -1,67 +1,44 @@
-# -*- coding: utf-8 -*-
-# vim:fenc=utf-8
-"""
-Plotting functions
-"""
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-from mce.util.plot import PlotSpace, unicode_character
+from .plot_base import PlotBase
+from .plot_util import unicode_character
 
-def plot_fitting(gcm, forcing, irm, names, px, kw_space={}, kw_seaborn={}):
-    """
-    Draw N and T time series, and their scatter diagram
+def plot_fitting(myplt, gcm, forcing, irm, names, px):
+    """Draw N and T time series, and their scatter diagram
 
     Parameters
     ----------
-    gcm : dict
-        AOGCM data
-
-    forcing : RfCO2 object
-
-    irm : IrmBase object
-
-    names : dict
+    myplt
+        Plotting module object
+    gcm
+        GCM data
+    forcing
+        Forcing module object
+    irm
+        Climate module object
+    names
         Names for dataset and variables used in the fitting
-
-    px : dict
+    px
         Additional parameters: lambda_reg, ecs, tcr, ecs_reg, tcr_gcm
-
-    kw_space : dict, optional
-        Arguments to PlotSpace()
-
-    kw_seaborn : dict, optional
-        Arguments to newfigure()
-
-    Returns
-    -------
-    fig : figure object
     """
-    opts_space = {
-        'height': 2.5,
-        'aspect': 1.4,
-        'wspace': 0.9,
-        'hspace': 0.4,
-        'left': 0.8,
-        'bottom': 0.8,
-        'right': 0.3,
-        'top': 0.5,
-    }
-    opts_space.update(kw_space)
-
-    height = opts_space['height']
-    aspect = opts_space['aspect']
-    hspace = opts_space['hspace']
-    wspace = opts_space['wspace']
+    height = 2.5
+    aspect = 1.4
+    wspace = 0.9
+    hspace = 0.4
     width = height * aspect
 
-    p1 = PlotSpace(**opts_space)
-    p1.append('bottom')
-    p1.append('right', height=width, aspect=1., yoff=height*2+hspace-width)
-    fig = p1.newfigure(**kw_seaborn)
-    for ax in fig.axes:
-        p1.despine(ax=ax)
+    myplt.init_general(
+        height=height, aspect=aspect, wspace=wspace, hspace=hspace,
+        extend=[
+            ('bottom', -1, {}),
+            (
+                'right', -1,
+                {'height': width, 'aspect': 1., 'yoff': height*2+hspace-width},
+            ),
+        ],
+    )
+    for ax in myplt.figure.axes:
         ax.grid(clip_on=False)
 
     colors_dark = sns.color_palette('dark')
@@ -92,7 +69,7 @@ def plot_fitting(gcm, forcing, irm, names, px, kw_space={}, kw_seaborn={}):
         'tas': 'Surface air-temperature ({})'.format(degc),
         'ts': 'Surface temperature ({})'.format(degc),
     }
-    lamb = irm.parms['lamb']
+    lamb = irm.parms.lamb
 
     time_4x = np.arange(150) + 0.5
     time_1p = np.arange(140) + 0.5
@@ -107,7 +84,7 @@ def plot_fitting(gcm, forcing, irm, names, px, kw_space={}, kw_seaborn={}):
     irm_1p_t = irm.response(time_1pi, f1p)
     irm_1p_n = f1p - lamb * irm_1p_t
 
-    ax = fig.axes[0]
+    ax = myplt(0)
     ax.plot(time_4x, gcm['4x_n'], label='GCM 4x', **linestyle['GCM 4x'])
     ax.plot(time_1p, gcm['1p_n'], label='GCM 1%', **linestyle['GCM 1%'])
     ax.plot(time_4xi, irm_4x_n, label='IRM 4x', **linestyle['IRM 4x'])
@@ -115,7 +92,7 @@ def plot_fitting(gcm, forcing, irm, names, px, kw_space={}, kw_seaborn={}):
     ax.legend(**kw_legend)
     ax.set_ylabel(map_labels[names['var_n']])
 
-    ax = fig.axes[1]
+    ax = myplt(1)
     ax.plot(time_4x, gcm['4x_t'], label='GCM 4x', **linestyle['GCM 4x'])
     ax.plot(time_1p, gcm['1p_t'], label='GCM 1%', **linestyle['GCM 1%'])
     ax.plot(time_4xi, irm_4x_t, label='IRM 4x', **linestyle['IRM 4x'])
@@ -126,7 +103,7 @@ def plot_fitting(gcm, forcing, irm, names, px, kw_space={}, kw_seaborn={}):
     ax.set_xlabel('Year')
     ax.set_ylabel(map_labels[names['var_t']])
 
-    ax = fig.axes[2]
+    ax = myplt(2)
     ax.plot(
         gcm['4x_t'], gcm['4x_n'], label='GCM 4x',
         clip_on=False, **linestyle['GCM 4x'])
@@ -151,15 +128,15 @@ def plot_fitting(gcm, forcing, irm, names, px, kw_space={}, kw_seaborn={}):
     ax.set_xlabel(map_labels[names['var_t']])
     ax.set_ylabel(map_labels[names['var_n']])
 
-    tauj = irm.parms['tauj'].tolist()
-    asj = irm.parms['asj'].tolist()
+    tauj = irm.parms.tauj.tolist()
+    asj = irm.parms.asj.tolist()
     nl = len(tauj)
     
     result_text = [
         'IRM-{} fitted to {} and {} of {}'
         .format(len(tauj), names['var_n'], names['var_t'], names['dataset']),
         u'alpha: {:.2f} {}, beta: {:.2f}'.format(
-            forcing.parms['alpha'], wpm2, forcing.parms['beta']),
+            forcing.parms.alpha, wpm2, forcing.parms.beta),
         '{}: {} y'
         .format(
             ', '.join(['tau{}'.format(i) for i in range(nl)]),
@@ -187,39 +164,33 @@ def plot_fitting(gcm, forcing, irm, names, px, kw_space={}, kw_seaborn={}):
                     px['tcr_gcm']/px['ecs_reg']))
     # xpos = 0.58
     # ypos = 0.27
-    xpos = (opts_space['left'] + width + wspace + 0.02) / (
-        opts_space['left'] + 2*width + wspace + opts_space['right'])
-    ypos = (opts_space['bottom'] + 1.) / (
-        opts_space['bottom'] + 2*height + hspace + opts_space['top'])
-    fig.text(xpos, ypos, '\n'.join(result_text), ha='left', va='top', size=10)
+    space = myplt.plot_space.kw_space
+    xpos = (space['left'] + width + wspace + 0.02) / (
+        space['left'] + 2*width + wspace + space['right'])
+    ypos = (space['bottom'] + 1.) / (
+        space['bottom'] + 2*height + hspace + space['top'])
+    myplt.figure.text(
+        xpos, ypos, '\n'.join(result_text), ha='left', va='top', size=10,
+    )
 
-    for i, ax in enumerate(fig.axes):
-        ax.text(
-            -0.12, 1., chr(97+i), ha='right', va='top', size=17,
-            transform=ax.transAxes)
-
-    return p1
+    myplt.panel_label(
+        xy=(-0.12, 1.), xytext=(0., 0.), 
+        ha='right', va='top', size=17,
+    )
 
 
-def plot_tcr_ecs(parms, ecs_conv=True, **kw):
-    """
-    Draw TCR-ECS scatter diagrams
+def plot_tcr_ecs(myplt, parms, ecs_conv=True, **kw):
+    """Draw TCR-ECS scatter diagrams
 
     Parameters
     ----------
-    parms : pandas.DataFrame
-        Thermal response parameters of CMIP models
-
-    ecs_conv : bool, optional, default True
+    myplt
+        Plotting module object
+    parms
+        Thermal response parameters calibrated to CMIP models
+    ecs_conv, optional
         If True, it draws two panels with conventional and new ECS estimates;
         otherwise one panel for the latter
-
-    kw : dict, optional, default {}
-        Used to modify labels
-
-    Returns
-    -------
-    p1 : PlotSpace object
     """
     degc = u'{}C'.format(unicode_character('degree'))
     xlabels = kw.get(
@@ -232,23 +203,37 @@ def plot_tcr_ecs(parms, ecs_conv=True, **kw):
     height = 4.
     aspect = 1.
     aspect2 = 7.
-    p1 = PlotSpace(height=height, aspect=aspect, wspace=0.2, hspace=0.2)
 
     if ecs_conv:
-        p1.append('right')
-        p1.append('top', ref=0, height=height/aspect2, aspect=aspect2, yoff=0.)
-        p1.append('top', ref=1, height=height/aspect2, aspect=aspect2, yoff=0.)
-        p1.append('right', ref=1, aspect=1./aspect2, xoff=0.)
+        ext = [
+            ('right', -1, {}),
+            (
+                'top', 0,
+                {'height': height/aspect2, 'aspect': aspect2, 'yoff': 0.},
+            ),
+            (
+                'top', 1,
+                {'height': height/aspect2, 'aspect': aspect2, 'yoff': 0.},
+            ),
+            ('right', 1, {'aspect': 1./aspect2, 'xoff': 0.}),
+        ]
     else:
-        p1.append('top', ref=0, height=height/aspect2, aspect=aspect2, yoff=0.)
-        p1.append('right', ref=0, aspect=1./aspect2, xoff=0.)
+        ext = [
+            (
+                'top', 0,
+                {'height': height/aspect2, 'aspect': aspect2, 'yoff': 0.},
+            ),
+            ('right', 0, {'aspect': 1./aspect2, 'xoff': 0.}),
+        ]
+    myplt.init_general(
+        extend=ext, height=height, aspect=aspect, wspace=0.2, hspace=0.2,
+    )
+    legend_data = {}
 
-    fig = p1.newfigure()
-    for i, ax in enumerate(fig.axes):
+    for i, ax in enumerate(myplt.figure.axes):
         if i > (ecs_conv and 1 or 0):
-            p1.despine(ax, left=True, bottom=True)
-        else:
-            p1.despine(ax)
+            ax.spines['left'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
 
     df = parms.groupby('mip')
     mipnames = list(df.groups)
@@ -261,80 +246,97 @@ def plot_tcr_ecs(parms, ecs_conv=True, **kw):
         del xvars[0]
         del xlabels[0]
 
-    label_list = []
-    invis_list = []
-
     for i, xvar in enumerate(xvars):
-        ax = fig.axes[i]
+        ax = myplt(i)
 
         for j, mip in enumerate(mipnames):
             color = 'C{}'.format(j)
             sns.regplot(
                 x=xvar, y=yvar, data=df.get_group(mip), color=color, ax=ax,
-                scatter_kws={'edgecolor': 'w', 's': 50}, label=mip)
-            p1.update_legend_data(ax)
+                scatter_kws={'edgecolor': 'w', 's': 50}, label=mip,
+            )
+            h, l = ax.get_legend_handles_labels()
+            legend_data.update(dict([x[::-1] for x in zip(h, l)]))
 
         if i == 0:
-            label_list.append({'xlabel': xlabels[0], 'ylabel': ylabel})
-            invis_list.append([])
+            ax.set_xlabel(xlabels[0])
+            ax.set_ylabel(ylabel)
         else:
-            label_list.append({'xlabel': xlabels[1], 'ylabel': ''})
-            invis_list.append(['yticklabels'])
+            ax.set_xlabel(xlabels[1])
+            ax.set_ylabel(None)
+            ax.tick_params(axis='y', labelleft=False)
 
     nb = len(xvars)
-    xlim, ylim = p1.axis_share(axes=fig.axes[:nb])
+    myplt.axis_share(axis='both', axes=list(range(nb)))
+    xlim = myplt(0).get_xlim()
+    ylim = myplt(0).get_ylim()
 
-    for ax in fig.axes[:nb]:
+    for n in range(nb):
+        ax = myplt(n)
         ax.grid(True)
         ax.plot(
             np.array(xlim), 0.6*np.array(xlim), ls='--', color='0.2',
-            label=label_refline)
-        p1.update_legend_data(ax)
+            label=label_refline,
+        )
+        h, l = ax.get_legend_handles_labels()
+        legend_data.update(dict([x[::-1] for x in zip(h, l)]))
 
     box_kws = {
         'saturation': 1,
         'width': 0.5, 'showmeans': True,
-        'meanprops': {'markerfacecolor': 'none', 'markeredgecolor': 'k'} }
+        'meanprops': {'markerfacecolor': 'none', 'markeredgecolor': 'k'},
+    }
 
     for i, xvar in enumerate(xvars):
-        ax = fig.axes[nb+i]
+        ax = myplt(nb+i)
         ax.set_xlim(*xlim)
         sns.boxplot(
-            x=xvar, y='mip', data=parms, orient='horizontal', ax=ax, **box_kws)
-        label_list.append({'xlabel': '', 'ylabel': ''})
+            x=xvar, y='mip', data=parms, orient='horizontal',
+            hue='mip', palette=['C0', 'C1'],
+            ax=ax, **box_kws,
+        )
+        ax.set_xlabel(None)
+        ax.set_ylabel(None)
         if i == 0:
-            invis_list.append(['xticklabels', 'xticklines', 'yticklines'])
+            ax.tick_params(axis='x', bottom=False, labelbottom=False)
+            ax.tick_params(axis='y', left=False)
         else:
-            invis_list.append(
-                ['xticklabels', 'yticklabels', 'xticklines', 'yticklines'])
+            ax.tick_params(axis='x', bottom=False, labelbottom=False)
+            ax.tick_params(axis='y', left=False, labelleft=False)
 
-    ax = fig.axes[2*nb]
+    ax = myplt(2*nb)
     ax.set_ylim(*ylim)
     sns.boxplot(
-        x='mip', y='tcr', data=parms, orient='vertical', ax=ax, **box_kws)
-    label_list.append({'xlabel': '', 'ylabel': ''})
-    invis_list.append(['yticklabels', 'xticklines', 'yticklines'])
-
-    p1.axis_labels(label_list, invis_list)
-    # plt.setp(ax.get_xticklabels(), rotation=30)
-    plt.setp(ax.get_xticklabels(), rotation=60)
+        x='mip', y='tcr', data=parms, orient='vertical',
+        hue='mip', palette=['C0', 'C1'],
+        ax=ax, **box_kws,
+    )
+    ax.set_xlabel(None)
+    ax.set_ylabel(None)
+    ax.tick_params(axis='x', bottom=False, labelrotation=60)
+    ax.tick_params(axis='y', left=False, labelleft=False)
 
     labels = mipnames + [label_refline]
-    handles = [p1.legend_data[k] for k in labels]
-    ax = fig.axes[0]
+    handles = [legend_data[k] for k in labels]
+    ax = myplt(0)
     ax.legend(handles, labels, labelspacing=0.)
 
     if ecs_conv:
-        for i, ax in enumerate(fig.axes[:2]):
-            ax.text(
-                0.98, 0.02, chr(97+i), ha='right', va='bottom', size=17,
-                transform=ax.transAxes)
-
-    return p1
+        myplt.panel_label(
+            xy=(0.98, 0.02), xytext=(0., 0.),
+            ha='right', va='bottom', size=17, axes=[0, 1],
+        )
 
 
-def plot_parms_rel(df, **kw):
-    """
+def plot_parms_rel(myplt, df, **kw):
+    """Draw distributions of parameter values
+
+    Parameters
+    ----------
+    myplt
+        Plotting module object
+    df
+        Thermal response parameters calibrated to CMIP models
     """
     # bins_fb = kw.get('bins_fb', [0.5, 0.8, 1.1, 1.4, 1.7])
     bins_fb = kw.get('bins_fb', [-np.inf, 0.8, 1.1, 1.4, np.inf])
@@ -376,20 +378,27 @@ def plot_parms_rel(df, **kw):
     hspace = 0.4
     hspace2 = hspace*1.8
     height2  = (height*2 + hspace2 - hspace*2) / 3.
-    p1 = PlotSpace(height=height, aspect=aspect1, wspace=wspace, hspace=hspace)
-    p1.append(
-        'right', height=height2, aspect=aspect2, xoff=2*wspace,
-        yoff=height-height2)
-    p1.append('right', height=height2, aspect=aspect2)
-    p1.append('right', height=height2, aspect=aspect2)
-    p1.append('bottom', -2, height=height2, aspect=aspect2)
-    p1.append('right', height=height2, aspect=aspect2)
-    p1.append('bottom', height=height2, aspect=aspect2)
-    p1.append('bottom', 0, aspect=aspect1*(15./12.), yoff=hspace2)
-    p1.append('right', aspect=aspect1*(10./12.))
-    fig = p1.newfigure()
-    for ax in fig.axes:
-        p1.despine(ax)
+    myplt = PlotBase()
+    ext = [
+        (
+            'right', -1,
+            {
+                'height': height2, 'aspect': aspect2,
+                'xoff': 2 * wspace, 'yoff': height - height2,
+            },
+        ),
+        ('right', -1, {'height': height2, 'aspect': aspect2}),
+        ('right', -1, {'height': height2, 'aspect': aspect2}),
+        ('bottom', -2, {'height': height2, 'aspect': aspect2}),
+        ('right', -1, {'height': height2, 'aspect': aspect2}),
+        ('bottom', -1, {'height': height2, 'aspect': aspect2}),
+        ('bottom', 0, {'aspect': aspect1*(15./12.), 'yoff': hspace2}),
+        ('right', -1, {'aspect': aspect1*(10./12.)}),
+    ]
+    myplt.init_general(
+        height=height, aspect=aspect1, wspace=wspace, hspace=hspace,
+        extend=ext,
+    )
 
     yvars = ['alpha', 'beta', '1/lambda', 'rwf']
     box_kws = {
@@ -398,7 +407,7 @@ def plot_parms_rel(df, **kw):
 
     df1 = dfb[yvars+['mip']].melt(id_vars='mip')
     k = 0
-    ax = fig.axes[k]
+    ax = myplt(k)
     sns.boxplot(
         x='variable', y='value', hue='mip', data=df1, ax=ax, **box_kws)
     k = k+1
@@ -408,7 +417,7 @@ def plot_parms_rel(df, **kw):
 
     for i in range(len(yvars)):
         for j in range(i+1, len(yvars)):
-            ax = fig.axes[k]
+            ax = myplt(k)
             if k == 6:
                 kw = {}
             else:
@@ -426,19 +435,19 @@ def plot_parms_rel(df, **kw):
 
     box_kws = {'width': 0.65, 'showfliers': False, 'palette': 'YlOrBr'}
                 
-    ax = fig.axes[k]
+    ax = myplt(k)
     xvars1 = ['a0*yrwf0', 'a1*yrwf1', 'a2*yrwf2']
     df1 = dfa[xvars1+['class']].melt(id_vars=['class'])
     sns.boxplot(
         x='variable', y='value', hue='class', data=df1, ax=ax, **box_kws)
 
-    ax = fig.axes[k+1]
+    ax = myplt(k+1)
     xvars2 = ['a2', 'yrwf2']
     df1 = dfa[xvars2+['class']].melt(id_vars=['class'])
     sns.boxplot(
         x='variable', y='value', hue='class', data=df1, ax=ax, **box_kws)
 
-    p1.axis_share(axis='y', axes=fig.axes[7:])
+    myplt.axis_share(axis='y', axes=list(range(7, len(myplt.figure.axes))))
 
     wpsqm = u'W/m{}'.format(unicode_character('^two'))
     degc = u'{}C'.format(unicode_character('degree'))
@@ -462,32 +471,47 @@ def plot_parms_rel(df, **kw):
         'a2': r'$A_{2}$',
         'yrwf2': r'$\kappa_{2}$',
     }
-    p1.axis_labels(
-        [{'xlabel': '',
-          'ylabel': 'Fractional difference from CMIP5 mean'},
-         {'xlabel': map_labels.get(yvars[1], yvars[1]),
-          'ylabel': map_labels.get(yvars[0], yvars[0])},
-         {'xlabel': '', 'ylabel': ''},
-         {'xlabel': '', 'ylabel': ''},
-         {'xlabel': map_labels.get(yvars[2], yvars[2]),
-          'ylabel': map_labels.get(yvars[1], yvars[1])},
-         {'xlabel': '', 'ylabel': ''},
-         {'xlabel': map_labels.get(yvars[3], yvars[3]),
-          'ylabel': map_labels.get(yvars[2], yvars[2])},
-         {'xlabel': '', 'ylabel': 'Value relative to CMIP5 mean'},
-         {'xlabel': '', 'ylabel': ''}],
-        [[],
-         [], ['xticklabels', 'yticklabels'], ['xticklabels', 'yticklabels'],
-         [], ['xticklabels', 'yticklabels'],
-         [],
-         [], ['yticklabels']]
+    ax = myplt(0)
+    ax.set(
+        xlabel=None,
+        ylabel='Fractional difference from CMIP5 mean',
     )
+    ax = myplt(1)
+    ax.set(
+        xlabel=map_labels.get(yvars[1], yvars[1]),
+        ylabel=map_labels.get(yvars[0], yvars[0]),
+    )
+    ax = myplt(2)
+    ax.set(xlabel=None, ylabel=None)
+    ax.tick_params(axis='both', labelleft=False, labelbottom=False)
+    ax = myplt(3)
+    ax.set(xlabel=None, ylabel=None)
+    ax.tick_params(axis='both', labelleft=False, labelbottom=False)
+    ax = myplt(4)
+    ax.set(
+        xlabel=map_labels.get(yvars[2], yvars[2]),
+        ylabel=map_labels.get(yvars[1], yvars[1]),
+    )
+    ax = myplt(5)
+    ax.set(xlabel=None, ylabel=None)
+    ax.tick_params(axis='both', labelleft=False, labelbottom=False)
+    ax = myplt(6)
+    ax.set(
+        xlabel=map_labels.get(yvars[3], yvars[3]),
+        ylabel=map_labels.get(yvars[2], yvars[2]),
+    )
+    ax = myplt(7)
+    ax.set(xlabel=None, ylabel='Value relative to CMIP5 mean')
+    ax = myplt(8)
+    ax.set(xlabel=None, ylabel=None)
+    ax.tick_params(axis='y', labelleft=False)
 
-    ax = fig.axes[0]
+    ax = myplt(0)
+    ax.set_xticks(ax.get_xticks()) # to avoid warning from set_xticklabels()
     ax.set_xticklabels([map_labels_wo_units.get(x, x) for x in yvars])
     ax.legend(handlelength=1., labelspacing=0.1)
 
-    ax = fig.axes[6]
+    ax = myplt(6)
     handles, labels = ax.get_legend_handles_labels()
     legend_data = dict([x[::-1] for x in zip(handles, labels)])
     labels = ['CMIP5', 'CMIP6']
@@ -496,52 +520,17 @@ def plot_parms_rel(df, **kw):
         handles, labels, handlelength=1., labelspacing=0.1,
         bbox_to_anchor=(-0.4, 0.5), loc='center right')
 
-    ax = fig.axes[7]
+    ax = myplt(7)
+    ax.set_xticks(ax.get_xticks())
     ax.set_xticklabels([map_labels_wo_units.get(x, x) for x in xvars1])
     ax.legend(handlelength=1., labelspacing=0.1)
 
-    ax = fig.axes[8]
+    ax = myplt(8)
+    ax.set_xticks(ax.get_xticks())
     ax.set_xticklabels([map_labels_wo_units.get(x, x) for x in xvars2])
     ax.legend_.remove()
 
-    for i, ax in enumerate(fig.axes):
-        ax.text(
-            0.02, 1.01, chr(97+i), ha='left', va='bottom', size=15,
-            transform=ax.transAxes)
-
-    return p1
-
-
-def plot_rwf_ramp(asj, tauj):
-    tp = np.arange(140) + 0.5
-    nl = len(tauj)
-    df = (asj * tauj).reshape((nl, 1)) / tp \
-        * (1 - np.exp(-tp/tauj.reshape((nl, 1))))
-    names_tau = ['tau{}'.format(i) for i in range(nl)]
-    df = pd.DataFrame(df, names_tau).T
-
-    tp2x = np.log(2.) / np.log(1.01)
-    yrwf = asj * tauj / tp2x * (1. - np.exp(-tp2x/tauj))
-
-    p1 = PlotSpace()
-    fig = p1.newfigure()
-    ax = fig.axes[0]
-
-    ret = df.plot(kind='area', ylim=[0, 1], legend=False, alpha=0.4, ax=ax)
-    ax.plot(
-        tp2x, yrwf.sum(), ls='None', marker='x', color='k', label='2x point')
-
-    # handles, labels = ax.get_legend_handles_labels()
-    # map_labels = {
-    #     'tau0': r'$\tau_{0}$', 'tau1': r'$\tau_{1}$', 'tau2': r'$\tau_{2}$'}
-    # labels = [map_labels.get(x, x) for x in labels]
-    # ax.legend(handles, labels)
-    ax.legend()
-
-    ax.set_xlabel('Year')
-    ax.set_ylabel('Yet to be realized warming fraction')
-    sns.despine(ax=ax)
-    ax.grid()
-
-    return p1
-
+    myplt.panel_label(
+        xy=(0.02, 1.01), xytext=(0., 0.),
+        ha='left', va='bottom', size=15,
+    )
