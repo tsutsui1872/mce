@@ -42,7 +42,7 @@ class ParmsCO2(ParmsBase):
         # adjusted CMIP5 mean for IRM-3
         # 4.701, # CMIP5 mean
         # 4.561, # adjusted CMIP5 mean for IRM-2
-        self.add('beta', 1.068, 'CO2 amplification factor', 'none', False)
+        self.add('beta', 1.068, 'CO2 amplification factor', 'no_unit', False)
         # CMIP5 mean for IRM-3
         # 1.062, # CMIP5 mean for IRM-2
         self.add('ccref', 278., 'Base concentration of CO2', 'ppm', False)
@@ -167,11 +167,11 @@ class ParmsAR6GHG(ParmsBase):
         self.add('N0_1750', 270.1, 'Base concentration of N2O in 1750', 'ppb')
         self.add('M0_1750', 729.2, 'Base concentration of CH4 in 1750', 'ppb')
 
-        self.add('CO2_adj', 0.05, 'Tropospheric adjustment of CO2', 'none')
-        self.add('N2O_adj', 0.07, 'Tropospheric adjustment of N2O', 'none')
-        self.add('CH4_adj', -0.14, 'Tropospheric adjustment of CH4', 'none')
-        self.add('CFC-12_adj', 0.12, 'Tropospheric adjustment of CFC-12', 'none')
-        self.add('CFC-11_adj', 0.13, 'Tropospheric adjustment of CFC-11', 'none')
+        self.add('CO2_adj', 0.05, 'Tropospheric adjustment of CO2', 'no_unit')
+        self.add('N2O_adj', 0.07, 'Tropospheric adjustment of N2O', 'no_unit')
+        self.add('CH4_adj', -0.14, 'Tropospheric adjustment of CH4', 'no_unit')
+        self.add('CFC-12_adj', 0.12, 'Tropospheric adjustment of CFC-12', 'no_unit')
+        self.add('CFC-11_adj', 0.13, 'Tropospheric adjustment of CFC-11', 'no_unit')
 
         self.add(
             'fb_o3_forcing', -0.037,
