@@ -1059,7 +1059,8 @@ class Driver:
                 else:
                     stack.append(e1)
 
-            df = df.append(stack[-1].to_frame(name).T)
+            # df = df.append(stack[-1].to_frame(name).T)
+            df = pd.concat([df, stack[-1].to_frame(name).T])
             self.variables[name] = self.MCEVariable(long_name, units)
 
         # Apply units conversion
