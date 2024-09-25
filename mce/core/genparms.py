@@ -172,7 +172,7 @@ class PcaParmsCmip(PcaBase):
         df = super().synthesis(score)
 
         self.tcr2ecs(df)
-        df['ecs_reg'] = df['beta'] * df['ecs']
+        df['ecs_reg'] = df['co2_beta'] * df['ecs']
 
         return df
 
@@ -229,7 +229,7 @@ class PcaParmsCmip(PcaBase):
         t70 = np.log(2.) / np.log(1.01)
         ecs = df['tcr'] / \
             (1 - (asj*tauj*(1-np.exp(-t70/tauj))).sum(axis=1) / t70)
-        xlamb = df['alpha'] * np.log(2.) / ecs
+        xlamb = df['co2_alpha'] * np.log(2.) / ecs
         df['ecs'] = ecs
         df['lambda'] = xlamb
 
