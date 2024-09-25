@@ -20,40 +20,40 @@ parameters:
       units: W m-2
   climate:
     tau0:
-      long_name: First element of time constants
-      units: year
+      long_name: First (shortest) time constant
+      units: y
     tau1:
-      long_name: Second element of time constants
-      units: year
+      long_name: Second time constant
+      units: y
     tau2:
-      long_name: Third element of time constants
-      units: year
+      long_name: Third time constant
+      units: y
     a0:
-      long_name: Fraction of the first time-constant contribution to the surface temperature change
+      long_name: Fraction of the first time constant contribution to the surface temperature change
       units: no_unit
     a1:
-      long_name: Fraction of the second time-constant contribution to the surface temperature change
+      long_name: Fraction of the second time constant contribution to the surface temperature change
       units: no_unit
     a2:
-      long_name: Fraction of the third time-constant contribution to the surface temperature change
+      long_name: Fraction of the third time constant contribution to the surface temperature change
       units: no_unit
     a10:
-      long_name: Fraction of the first time-constant contribution to the first sub-surface temperature change
+      long_name: Fraction of the first time constant contribution to the first sub-surface temperature change
       units: no_unit
     a11:
-      long_name: Fraction of the second time-constant contribution to the first sub-surface temperature change
+      long_name: Fraction of the second time constant contribution to the first sub-surface temperature change
       units: no_unit
     a12:
-      long_name: Fraction of the third time-constant contribution to the first sub-surface temperature change
+      long_name: Fraction of the third time constant contribution to the first sub-surface temperature change
       units: no_unit
     a20:
-      long_name: Fraction of the first time-constant contribution to the second sub-surface temperature change
+      long_name: Fraction of the first time constant contribution to the second sub-surface temperature change
       units: no_unit
     a21:
-      long_name: Fraction of the second time-constant contribution to the second sub-surface temperature change
+      long_name: Fraction of the second time constant contribution to the second sub-surface temperature change
       units: no_unit
     a22:
-      long_name: Fraction of the third time-constant contribution to the second sub-surface temperature change
+      long_name: Fraction of the third time constant contribution to the second sub-surface temperature change
       units: no_unit
     lambda:
       long_name: Climate feedback parameter
@@ -95,3 +95,60 @@ parameters:
       long_name: Equivalent ocean depth to the total heat capacity
       units: m
 
+  ocean:
+    tau1:
+      long_name: First (finite and longest) component of time constants
+      units: y
+    tau2:
+      long_name: Second component of time constants
+      units: y
+    tau3:
+      long_name: Third component of time constants
+      units: y
+    tau4:
+      long_name: Fourth (shortest) component of time constants
+      units: y
+    amp0:
+      long_name: Asymptotic long-term airborne fraction
+      units: no_unit
+    amp1:
+      long_name: Airborne fraction corresponding to the first time constant
+      units: no_unit
+    amp2:
+      long_name: Airborne fraction corresponding to the second time constant
+      units: no_unit
+    amp3:
+      long_name: Airborne fraction corresponding to the third time constant
+      units: no_unit
+    amp4:
+      long_name: Airborne fraction corresponding to the fourth time constant
+      units: no_unit
+    hls:
+      long_name: Surface mixed layer depth
+      units: m
+    hl1:
+      long_name: Sub-surface layer 1 depth
+      units: m
+    hl2:
+      long_name: Sub-surface layer 2 depth
+      units: m
+    hl3:
+      long_name: Sub-surface layer 3 depth
+      units: m
+    eta1:
+      long_name: Exchange coefficient between the surface and layer 1
+      units: m y-1
+    eta2:
+      long_name: Exchange coefficient between the sub-surface layers 1 and 2
+      units: m y-1
+    eta3:
+      long_name: Exchange coefficient between the sub-surface layers 2 and 3
+      units: m y-1
+
+  land:
+    beta:
+      long_name: Control parameter of CO2 fertilization effect
+      units: no_unit
+    fb_alpha:
+      long_name: Control parameter to adjust land carbon overturning times
+      units: no_unit
