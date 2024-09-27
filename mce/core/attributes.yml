@@ -18,6 +18,66 @@ parameters:
     q4x_reg:
       long_name: 4xCO2 forcing based on conventional linear regression
       units: W m-2
+
+  forcing_scale:
+    # Scaling factors for effective radiative forcing
+    # by contributing forcing agents
+    co2:
+      # not used; replaced with co2_alpha and co2_beta
+      long_name: Scaling factor for CO2
+      units: no_unit
+    ch4:
+      long_name: Scaling factor for CH4
+      units: no_unit
+    n2o:
+      long_name: Scaling factor for N2O
+      units: no_unit
+    other_wmghg:
+      long_name: Scaling factor for halogenated species
+      units: no_unit
+    o3:
+      long_name: Scaling factor for ozone
+      units: no_unit
+    h2o_strat:
+      long_name: Scaling factor for stratospheric water vapor due to CH4 oxidation 
+      units: no_unit
+    contrails:
+      long_name: Scaling factor for contrails and aviation-induced cirrus
+      units: no_unit
+    bc_on_snow:
+      long_name: Scaling factor for surface albedo due to light-absorbing particles on snow and ice
+      units: no_unit
+    land_use:
+      long_name: Scaling factor for surface albedo due to land use changes
+      units: no_unit
+    aerosols:
+      long_name: Scaling factor for aerosols
+      units: no_unit
+    aerci:
+      long_name: Scaling factor for aerosol-cloud interactions
+      units: no_unit
+    aerri:
+      long_name: Scaling factor for aerosol-radiation interactions
+      units: no_unit
+    volcanic:
+      long_name: Scaling factor for volcanic aerosols
+      units: no_unit
+    solar:
+      long_name: Scaling factor for solar irradiance
+      units: no_unit
+    o3_trop:
+      long_name: Scaling factor for tropospheric ozone
+      units: no_unit
+    o3_strat:
+      long_name: Scaling factor for stratospheric ozone
+      units: no_unit
+    f_gases:
+      long_name: Scaling factor for halogenated species not covered by Montreal Protocol
+      units: no_unit
+    montreal_gases:
+      long_name: Scaling factor for halogenated species regulated by Montreal Protocol
+      units: no_unit
+
   climate:
     tau0:
       long_name: First (shortest) time constant
