@@ -9,7 +9,7 @@ from . import ModelBase
 
 Molecule = namedtuple(
     # Properties of each greenhouse gas
-    'Mulecule', [
+    'Molecule', [
         'name',
         'category',
         'formula',
@@ -213,66 +213,66 @@ class RfAll(RfCO2):
         #   Table 7.SM.7 of AR6 WG1
         #   slightly changed for CH2Cl2 and CHCl3 as in the Chapter 7 source (ar6/constants/gases.py)
         self.ghgs = {
-            'CO2': Molecule('carbon dioxide', 'CO2', 'CO2', 44.01, None, None),
-            'CH4': Molecule('methane', 'CH4', 'CH4', 16.04, None, 11.8),
-            'N2O': Molecule('nitrous oxide', 'N2O', 'N2O', 44.01, None, 109.),
+            'CO2': Molecule('carbon dioxide', 'co2', 'CO2', 44.01, None, None),
+            'CH4': Molecule('methane', 'ch4', 'CH4', 16.04, None, 11.8),
+            'N2O': Molecule('nitrous oxide', 'n2o', 'N2O', 44.01, None, 109.),
             # Chlorofluorocarbons
-            'CFC-12': Molecule('CFC-12', 'Montreal Gases', 'CCl2F2', 120.91, 0.31998, 102.), # 0.32
-            'CFC-11': Molecule('CFC-11', 'Montreal Gases', 'CCl3F', 137.37, 0.25941, 52.), # 0.26
-            'CFC-113': Molecule('CFC-113', 'Montreal Gases', 'CCl2FCClF2', 187.38, 0.30142, 93.), # 0.30
-            'CFC-114': Molecule('CFC-114', 'Montreal Gases', 'CClF2CClF2', 170.92, 0.31433, 189.), # 0.31
-            'CFC-115': Molecule('CFC-115', 'Montreal Gases', 'CClF2CF3', 154.47, 0.24625, 540.), # 0.20
-            'CFC-13': Molecule('CFC-13', 'Montreal Gases', 'CClF3', 104.46, 0.27752, 640.),
-            'CFC-112': Molecule('CFC-112', 'Montreal Gases', 'CCl2FCCl2F', 203.83, 0.28192, 63.6),
-            'CFC-112a': Molecule('CFC-112a', 'Montreal Gases', 'CCl3CClF2', 203.83, 0.24564, 52.),
-            'CFC-113a': Molecule('CFC-113a', 'Montreal Gases', 'CCl3CF3', 187.38, 0.24094, 55.),
-            'CFC-114a': Molecule('CFC-114a', 'Montreal Gases', 'CCl2FCF3', 170.92, 0.29747, 105.),
+            'CFC-12': Molecule('CFC-12', 'montreal_gases', 'CCl2F2', 120.91, 0.31998, 102.), # 0.32
+            'CFC-11': Molecule('CFC-11', 'montreal_gases', 'CCl3F', 137.37, 0.25941, 52.), # 0.26
+            'CFC-113': Molecule('CFC-113', 'montreal_gases', 'CCl2FCClF2', 187.38, 0.30142, 93.), # 0.30
+            'CFC-114': Molecule('CFC-114', 'montreal_gases', 'CClF2CClF2', 170.92, 0.31433, 189.), # 0.31
+            'CFC-115': Molecule('CFC-115', 'montreal_gases', 'CClF2CF3', 154.47, 0.24625, 540.), # 0.20
+            'CFC-13': Molecule('CFC-13', 'montreal_gases', 'CClF3', 104.46, 0.27752, 640.),
+            'CFC-112': Molecule('CFC-112', 'montreal_gases', 'CCl2FCCl2F', 203.83, 0.28192, 63.6),
+            'CFC-112a': Molecule('CFC-112a', 'montreal_gases', 'CCl3CClF2', 203.83, 0.24564, 52.),
+            'CFC-113a': Molecule('CFC-113a', 'montreal_gases', 'CCl3CF3', 187.38, 0.24094, 55.),
+            'CFC-114a': Molecule('CFC-114a', 'montreal_gases', 'CCl2FCF3', 170.92, 0.29747, 105.),
             # Hydrofluorochlorocarbons
-            'HCFC-22': Molecule('HCFC-22', 'Montreal Gases', 'CHClF2', 86.47, 0.21385, 11.9), # 0.21
-            'HCFC-141b': Molecule('HCFC-141b', 'Montreal Gases', 'CH3CCl2F', 116.95, 0.16065, 9.4), # 0.1
-            'HCFC-142b': Molecule('HCFC-142b', 'Montreal Gases', 'CH3CClF2', 100.49, 0.19329, 18.), # 0.19
-            'HCFC-133a': Molecule('HCFC-133a', 'Montreal Gases', 'CH2ClCF3', 118.49, 0.14995, 4.6),
-            'HCFC-31': Molecule('HCFC-31', 'Montreal Gases', 'CH2ClF', 68.48, 0.068, 1.2),
-            'HCFC-124': Molecule('HCFC-124', 'Montreal Gases', 'CHClFCF3', 136.48, 0.20721, 5.9),
+            'HCFC-22': Molecule('HCFC-22', 'montreal_gases', 'CHClF2', 86.47, 0.21385, 11.9), # 0.21
+            'HCFC-141b': Molecule('HCFC-141b', 'montreal_gases', 'CH3CCl2F', 116.95, 0.16065, 9.4), # 0.1
+            'HCFC-142b': Molecule('HCFC-142b', 'montreal_gases', 'CH3CClF2', 100.49, 0.19329, 18.), # 0.19
+            'HCFC-133a': Molecule('HCFC-133a', 'montreal_gases', 'CH2ClCF3', 118.49, 0.14995, 4.6),
+            'HCFC-31': Molecule('HCFC-31', 'montreal_gases', 'CH2ClF', 68.48, 0.068, 1.2),
+            'HCFC-124': Molecule('HCFC-124', 'montreal_gases', 'CHClFCF3', 136.48, 0.20721, 5.9),
             # Chlorocarbons and Hydrochlorocarbons
-            'CH3CCl3': Molecule('CH3CCl3', 'Montreal Gases', 'CH3CCl3', 133.40, 0.06454, 5.), # 0.07
-            'CCl4': Molecule('CCl4', 'Montreal Gases', 'CCl4', 153.82, 0.16616, 32.), # 0.17
-            'CH3Cl': Molecule('CH3Cl', 'Montreal Gases', 'CH3Cl', 50.49, 0.00466, 0.9), # 0.01
-            'CH2Cl2': Molecule('CH2Cl2', 'Montreal Gases', 'CH2Cl2', 84.93, 0.02882, 0.4932), # 0.03
-            'CHCl3': Molecule('CHCl3', 'Montreal Gases', 'CHCl3', 119.38, 0.07357, 0.5014), # 0.08
+            'CH3CCl3': Molecule('CH3CCl3', 'montreal_gases', 'CH3CCl3', 133.40, 0.06454, 5.), # 0.07
+            'CCl4': Molecule('CCl4', 'montreal_gases', 'CCl4', 153.82, 0.16616, 32.), # 0.17
+            'CH3Cl': Molecule('CH3Cl', 'montreal_gases', 'CH3Cl', 50.49, 0.00466, 0.9), # 0.01
+            'CH2Cl2': Molecule('CH2Cl2', 'montreal_gases', 'CH2Cl2', 84.93, 0.02882, 0.4932), # 0.03
+            'CHCl3': Molecule('CHCl3', 'montreal_gases', 'CHCl3', 119.38, 0.07357, 0.5014), # 0.08
             # Bromocarbons, hydrobromocarbons and halons
-            'CH3Br': Molecule('CH3Br', 'Montreal Gases', 'CH3Br', 94.94, 0.00432, 0.8), # 0.004
-            'Halon-1202': Molecule('Halon-1202', 'Montreal Gases', 'CBr2F2', 209.82, 0.272, 2.5), # 0.27
-            'Halon-1211': Molecule('Halon-1211', 'Montreal Gases', 'CBrClF2', 165.36, 0.30014, 16.), # 0.29
-            'Halon-1301': Molecule('Halon-1301', 'Montreal Gases', 'CBrF3', 148.91, 0.29943, 72.), # 0.30
-            'Halon-2402': Molecule('Halon-2402', 'Montreal Gases', 'CBrF2CBrF2', 259.82, 0.31169, 28.), # 0.31
+            'CH3Br': Molecule('CH3Br', 'montreal_gases', 'CH3Br', 94.94, 0.00432, 0.8), # 0.004
+            'Halon-1202': Molecule('Halon-1202', 'montreal_gases', 'CBr2F2', 209.82, 0.272, 2.5), # 0.27
+            'Halon-1211': Molecule('Halon-1211', 'montreal_gases', 'CBrClF2', 165.36, 0.30014, 16.), # 0.29
+            'Halon-1301': Molecule('Halon-1301', 'montreal_gases', 'CBrF3', 148.91, 0.29943, 72.), # 0.30
+            'Halon-2402': Molecule('Halon-2402', 'montreal_gases', 'CBrF2CBrF2', 259.82, 0.31169, 28.), # 0.31
             # Hydrofluorocarbons
-            'HFC-134a': Molecule('HFC-134a', 'F-Gases', 'CH2FCF3', 102.03, 0.16714, 14.), # 0.16
-            'HFC-23': Molecule('HFC-23', 'F-Gases', 'CHF3', 70.01, 0.19111, 228.), # 0.18
-            'HFC-32': Molecule('HFC-32', 'F-Gases', 'CH2F2', 52.02, 0.11144, 5.4), # 0.11
-            'HFC-125': Molecule('HFC-125', 'F-Gases', 'CHF2CF3', 120.02, 0.23378, 30.), # 0.23
-            'HFC-143a': Molecule('HFC-143a', 'F-Gases', 'CH3CF3', 84.04, 0.168, 51.), # 0.16
-            'HFC-152a': Molecule('HFC-152a', 'F-Gases', 'CH3CHF2', 66.05, 0.10174, 1.6), # 0.10
-            'HFC-227ea': Molecule('HFC-227ea', 'F-Gases', 'CF3CHFCF3', 170.03, 0.27325, 36.), # 0.26
-            'HFC-236fa': Molecule('HFC-236fa', 'F-Gases', 'CF3CH2CF3', 152.04, 0.25069, 213.), # 0.24
-            'HFC-245fa': Molecule('HFC-245fa', 'F-Gases', 'CHF2CH2CF3', 134.05, 0.24498, 7.9), # 0.24
-            'HFC-365mfc': Molecule('HFC-365mfc', 'F-Gases', 'CH3CF2CH2CF3', 148.07, 0.22813, 8.9), # 0.22
-            'HFC-43-10mee': Molecule('HFC-43-10mee', 'F-Gases', 'CF3CHFCHFCF2CF3', 252.05, 0.35731, 17.), # 0.42
+            'HFC-134a': Molecule('HFC-134a', 'f_gases', 'CH2FCF3', 102.03, 0.16714, 14.), # 0.16
+            'HFC-23': Molecule('HFC-23', 'f_gases', 'CHF3', 70.01, 0.19111, 228.), # 0.18
+            'HFC-32': Molecule('HFC-32', 'f_gases', 'CH2F2', 52.02, 0.11144, 5.4), # 0.11
+            'HFC-125': Molecule('HFC-125', 'f_gases', 'CHF2CF3', 120.02, 0.23378, 30.), # 0.23
+            'HFC-143a': Molecule('HFC-143a', 'f_gases', 'CH3CF3', 84.04, 0.168, 51.), # 0.16
+            'HFC-152a': Molecule('HFC-152a', 'f_gases', 'CH3CHF2', 66.05, 0.10174, 1.6), # 0.10
+            'HFC-227ea': Molecule('HFC-227ea', 'f_gases', 'CF3CHFCF3', 170.03, 0.27325, 36.), # 0.26
+            'HFC-236fa': Molecule('HFC-236fa', 'f_gases', 'CF3CH2CF3', 152.04, 0.25069, 213.), # 0.24
+            'HFC-245fa': Molecule('HFC-245fa', 'f_gases', 'CHF2CH2CF3', 134.05, 0.24498, 7.9), # 0.24
+            'HFC-365mfc': Molecule('HFC-365mfc', 'f_gases', 'CH3CF2CH2CF3', 148.07, 0.22813, 8.9), # 0.22
+            'HFC-43-10mee': Molecule('HFC-43-10mee', 'f_gases', 'CF3CHFCHFCF2CF3', 252.05, 0.35731, 17.), # 0.42
             # Fully fluorinated species
-            'NF3': Molecule('NF3', 'F-Gases', 'NF3', 71.00, 0.20448, 569.), # 0.20
-            'SF6': Molecule('SF6', 'F-Gases', 'SF6', 146.06, 0.56657, 3200.), # 0.57
-            'SO2F2': Molecule('SO2F2', 'F-Gases', 'SO2F2', 102.06, 0.21074, 36.), # 0.20
-            'CF4': Molecule('CF4', 'F-Gases', 'CF4', 88.00, 0.09859, 50000.), # 0.09
-            'C2F6': Molecule('C2F6', 'F-Gases', 'C2F6', 138.01, 0.26105, 10000.), # 0.25
-            'C3F8': Molecule('C3F8', 'F-Gases', 'C3F8', 188.02, 0.26999, 2600.), # 0.28
-            'n-C4F10': Molecule('n-C4F10', 'F-Gases', 'n-C4F10', 238.03, 0.36874, 2600.), # 0.36
-            'n-C5F12': Molecule('n-C5F12', 'F-Gases', 'n-C5F12', 288.03, 0.4076, 4100.), # 0.41
-            'n-C6F14': Molecule('n-C6F14', 'F-Gases', 'n-C6F14', 338.04, 0.44888, 3100.), # 0.44
-            'C7F16': Molecule('C7F16', 'F-Gases', 'C7F16', 388.05, 0.50312, 3000.), # maybe n-C7F16, 0.50
-            'C8F18': Molecule('C8F18', 'F-Gases', 'C8F18', 438.06, 0.55787, 3000.), # maybe n-C8F18, 0.55
+            'NF3': Molecule('NF3', 'f_gases', 'NF3', 71.00, 0.20448, 569.), # 0.20
+            'SF6': Molecule('SF6', 'f_gases', 'SF6', 146.06, 0.56657, 3200.), # 0.57
+            'SO2F2': Molecule('SO2F2', 'f_gases', 'SO2F2', 102.06, 0.21074, 36.), # 0.20
+            'CF4': Molecule('CF4', 'f_gases', 'CF4', 88.00, 0.09859, 50000.), # 0.09
+            'C2F6': Molecule('C2F6', 'f_gases', 'C2F6', 138.01, 0.26105, 10000.), # 0.25
+            'C3F8': Molecule('C3F8', 'f_gases', 'C3F8', 188.02, 0.26999, 2600.), # 0.28
+            'n-C4F10': Molecule('n-C4F10', 'f_gases', 'n-C4F10', 238.03, 0.36874, 2600.), # 0.36
+            'n-C5F12': Molecule('n-C5F12', 'f_gases', 'n-C5F12', 288.03, 0.4076, 4100.), # 0.41
+            'n-C6F14': Molecule('n-C6F14', 'f_gases', 'n-C6F14', 338.04, 0.44888, 3100.), # 0.44
+            'C7F16': Molecule('C7F16', 'f_gases', 'C7F16', 388.05, 0.50312, 3000.), # maybe n-C7F16, 0.50
+            'C8F18': Molecule('C8F18', 'f_gases', 'C8F18', 438.06, 0.55787, 3000.), # maybe n-C8F18, 0.55
             # Others
-            'i-C6F14': Molecule('i-C6F14', 'F-Gases', 'i-C6F14', 338.04, 0.44888, 3100.), # assume the same as n-C6F14
-            'c-C4F8': Molecule('c-C4F8', 'F-Gases', 'c-C4F8', 200.03, 0.31392, 3200.), # use AR5
+            'i-C6F14': Molecule('i-C6F14', 'f_gases', 'i-C6F14', 338.04, 0.44888, 3100.), # assume the same as n-C6F14
+            'c-C4F8': Molecule('c-C4F8', 'f_gases', 'c-C4F8', 200.03, 0.31392, 3200.), # use AR5
         }
         # Ozone depleting substances parameters:
         # fractional stratospheric release for ozone depletion,
