@@ -1,6 +1,63 @@
 # units may be given to cf_units.Unit()
 # for which 'no_unit' is acceptable
 
+variables:
+  abf:
+    long_name: Airborne fraction of cumulative CO2 emissions
+    units: no_unit
+  catm:
+    long_name: Excess carbon in the atmosphere
+    units: Gt C
+  cbsf:
+    long_name: Atmosphere-to-land CO2 flux
+    units: Gt C y-1
+  cbs:
+    long_name: Accumulated carbon over land
+    units: Gt C
+  cbst:
+    long_name: Accumulated total carbon over land
+    units: Gt C
+  cco2:
+    long_name: Atmospheric CO2 concentration
+    units: ppm
+  cocf:
+    long_name: Atmosphere-to-ocean CO2 flux
+    units: Gt C y-1
+  coct:
+    long_name: Accumulated total carbon over ocean
+    units: Gt C
+  ctot:
+    long_name: Cumulative CO2 emissions
+    units: Gt C
+  eco2:
+    long_name: CO2 emissions
+    units: Gt C y-1
+  erf:
+    long_name: Total effective radiative forcing
+    units: W m-2
+  erf__co2:
+    long_name: Effective radiative forcing of CO2
+    units: W m-2
+  erf__nonco2:
+    long_name: Effective radiative forcing of non-CO2
+    units: W m-2
+  rtnt:
+    long_name: Total heat uptake
+    units: W m-2
+  tak:
+    long_name: Temperature change
+    units: K
+  tas:
+    long_name: Surface temperature change
+    units: K
+  tcre:
+    long_name: Instantaneous TCRE
+    units: K 1000 Gt C-1
+  thc:
+    long_name: Total heat content change
+    units: ZJ
+    # to be converted from J spy-1 m-2
+
 parameters:
   forcing:
     co2_alpha:
