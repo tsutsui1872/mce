@@ -163,7 +163,7 @@ class ParmsAR6GHG(ParmsBase):
         self.add('M0', 731.41, 'Base concentration of CH4', 'ppb')
 
         # AR6 WG1 7.SM.1.3.1
-        self.add('C0_1750', 278.3, 'Base concentration of CO2 in 1750', 'ppm')
+        self.add('C0_1750', 278.3, 'Base concentration of CO2 in 1750', 'ppm', False)
         self.add('N0_1750', 270.1, 'Base concentration of N2O in 1750', 'ppb')
         self.add('M0_1750', 729.2, 'Base concentration of CH4 in 1750', 'ppb')
 
@@ -295,8 +295,8 @@ class RfAll(RfCO2):
             'HCFC-142b': ODS('HCFC-142b', 0.17, 1, 0),
             'HCFC-22': ODS('HCFC-22', 0.13, 1, 0),
             # 'Halon-1202': Halogen('Halon-1202', 0.62, 0, 2), # not used, but defined in FaIR-1.6.2
-            'Halon-1211': ODS('Halon-1211', 0.62, 0, 1), # maybe wrong
-            # 'Halon-1211': ODS('Halon-1211', 0.62, 1, 1), # correct
+            # 'Halon-1211': ODS('Halon-1211', 0.62, 0, 1), # maybe wrong
+            'Halon-1211': ODS('Halon-1211', 0.62, 1, 1), # correct
             'Halon-1301': ODS('Halon-1301', 0.28, 0, 1),
             'Halon-2402': ODS('Halon-2402', 0.65, 0, 2),
         }
@@ -604,9 +604,11 @@ class RfAll(RfCO2):
         rd = np.exp(-dt/tau)
         rs = (1 - rd)*tau
         rr = (dt - rs)*(tau/dt)
-        y = np.zeros(len(x))
+        # y = np.zeros(len(x))
+        y = np.zeros_like(x)
         y[0] = yinit
-        for i in range(len(x)-1):
+        # for i in range(len(x)-1):
+        for i in range(x.shape[0]-1):
             y[i+1] = rd*y[i] + rs*x[i] + rr*(x[i+1]-x[i])
         return y
 
@@ -633,9 +635,11 @@ class RfAll(RfCO2):
         rd = np.exp(-dt/tau)
         rs = (1 - rd)*tau
         rr = (dt - rs)*(tau/dt)
-        x = np.zeros(len(y))
+        # x = np.zeros(len(y))
+        x = np.zeros_like(y)
         x[0] = xinit
-        for i in range(len(y)-1):
+        # for i in range(len(y)-1):
+        for i in range(y.shape[0]-1):
             x[i+1] = (rd*dt-rs)/(dt-rs)*x[i] + (y[i+1]-rd*y[i])/rr
         return x
 
