@@ -6,34 +6,18 @@ from scipy.optimize import curve_fit
 from .forcing import RfAll
 
 class InputSeries:
-    def __init__(self, dict_df, year_pi, d_pi={}):
+    def __init__(self, **kw):
         """Create an input data utility instance
-
-        Parameters
-        ----------
-        dict_df
-            Dictionary of input data frames of emissions, concentrations,
-            and forcings with keys 'emis', 'conc', and 'erf', repectively
-        year_pi
-            Base pre-industrial year
-        d_pi, optional
-            Dictionary of base values, by default {}
+        from pairs of key and dataframe given by keyword arguments
         """
         self.df = {}
-        self.d_pi = {}
         self.interp = {}
-        self.map_unit = {}
 
-        self.year_pi = year_pi
         kw_interp = {'bounds_error': False, 'fill_value': 'extrapolate'}
 
-        for k, df in dict_df.items():
+        for k, df in kw.items():
             self.df[k] = df
-            self.d_pi[k] = d_pi.get(k, self.get_data(k, year_pi))
             self.interp[k] = interp1d(df.index, df.values.T, **kw_interp)
-
-            if df.columns.nlevels == 2:
-                self.map_unit[k] = {name: unit for name, unit in df.columns}
 
     def _mod_header(self, df):
         """Ensure a given dataframe with single-level column indexes
@@ -97,37 +81,35 @@ class InputSeries:
 
 
 class RfAllAR6(RfAll):
-    def __init__(self, din, *args, **kw):
+    def __init__(self, dfin_ref, din, *args, **kw):
         """Create a forcing instance for full-emissions runs
 
         Parameters
         ----------
         din
             Input data utility instance
+        dfin_ref
+            Input data in pre-industrial and reference years
         """
         super().__init__(*args, **kw)
-
-        self.din = din
-        year_pi = din.year_pi
 
         self.SAMPLES = 100000
         self.NINETY_TO_ONESIGMA = stats.norm.ppf(0.95)
 
-        # Set emissions and concentrations reference data
-        self.emis_slcf_pi = din.d_pi['emis']
-        self.df_emis_slcf_ref = din.get_data('emis')
+        din_ref = {
+            k: v.droplevel(0).drop('unit', axis=1).rename(columns=int).T
+            for k, v in dfin_ref.groupby(level=0)
+        }
+        din_ref['conc']['ODS'] = self.eesc_total(din_ref['conc'])
 
-        d1 = din.d_pi['conc']
-        self.conc_ghg_pi = pd.concat([
-            d1, pd.Series({'ODS': self.eesc_total(d1)}),
-        ])
-        self.df_conc_ghg_ref = din.get_data('conc')
+        self.din_ref = din_ref
+        self.din = din
+
+        year_pi = 1750
+        self.year_pi = year_pi
 
         # Adjust a parameter for the AR6 CO2 forcing scheme
-        if year_pi == 1750:
-            self.parms_ar6_ghg.update(
-                C0_1750=din.d_pi['conc']['CO2'],
-            )
+        self.parms_ar6_ghg.update(C0_1750=din_ref['conc'].loc[year_pi, 'CO2'])
 
         # Set radiative efficiency parameters for halogenated species
         map_adj = {
@@ -140,24 +122,26 @@ class RfAllAR6(RfAll):
                 * 1e-3  # ppt assumed
                 * (1. + map_adj.get(gas, 0.))
             )
-            for gas in din.d_pi['conc'].index
-            if gas not in ['CO2', 'CH4', 'N2O']
+            for gas in din_ref['conc']
+            if gas not in ['CO2', 'CH4', 'N2O', 'ODS']
         })
 
         # Set a forcing factor for stratospheric water vapor
-        d1 = din.get_data('conc', 2019)
+        d1 = din_ref['conc'].loc[2019]
         erf1 = self.c2erf_ar6('CH4', d1['CH4'], cn2o=d1['N2O'])
         self.h2o_strat__factor = 0.05 / erf1
 
         # Set a forcing factor for land use
-        d1 = din.get_data('emis')['CO2 AFOLU']
-        self.land_use__pi = d1.loc[year_pi]
-        d1 = d1.cumsum().sub(self.land_use__pi)
-        self.land_use__factor = -0.20 / d1.loc[2019]
+        self.land_use__pi = din_ref['emis'].loc[year_pi, 'CO2 AFOLU']
+        self.land_use__factor = -0.20 / (
+            din_ref['emis_co2__cumsum'].loc[2019, 'CO2 AFOLU']
+            - self.land_use__pi
+        )
 
         # Set a forcing factor for light-absorbing particles on snow and ice
         self.bc_on_snow__factor = 0.08 / (
-            self.df_emis_slcf_ref.loc[2019, 'BC'] - self.emis_slcf_pi['BC']
+            din_ref['emis'].loc[2019, 'BC']
+            - din_ref['emis'].loc[year_pi, 'BC']
         )
 
         # Species associated with aerosols and ozone forcers
@@ -204,40 +188,27 @@ class RfAllAR6(RfAll):
         ari_emitted
             Reference values
         """
-        din = self.din
-        year_pi = din.year_pi
-        df_emis_slcf = self.df_emis_slcf_ref
-        df_conc_ghg = self.df_conc_ghg_ref
-
         species = self.ari__species
         gases = self.ari__gases
-
         SAMPLES = self.SAMPLES
         NINETY_TO_ONESIGMA = self.NINETY_TO_ONESIGMA
 
-        d1 = df_conc_ghg.loc[2019]
-        d1 = pd.concat([
-            d1[gases[:2]],
-            pd.Series({gases[2]: self.eesc_total(d1)}),
-        ])
+        emis = self.din_ref['emis'][species].T
+        conc = self.din_ref['conc'][gases].T
+        self.ari__din_ref = pd.concat([emis, conc])
 
-        # Radiative efficienty per Mt, ppb, or ppt
+        # Radiative efficiency per Mt, ppb, or ppt
+        year_pi = self.year_pi
         radeff = pd.concat([
-            ari_emitted[species].div(
-                df_emis_slcf.loc[2019, species] - self.emis_slcf_pi[species]),
-            ari_emitted[gases] / (d1 - self.conc_ghg_pi[gases]),
+            ari_emitted[species] / (emis[2019] - emis[year_pi]),
+            ari_emitted[gases] / (conc[2019] - conc[year_pi]),
         ])
         radeff_std = pd.concat([
-            ari_emitted_std[species].div(
-                df_emis_slcf.loc[2019, species] - self.emis_slcf_pi[species]),
-            ari_emitted_std[gases] / (d1 - self.conc_ghg_pi[gases]),
+            ari_emitted_std[species] / (emis[2019] - emis[year_pi]),
+            ari_emitted_std[gases] / (conc[2019] - conc[year_pi]),
         ])
 
-        df = pd.concat([
-            df_emis_slcf[species],
-            df_conc_ghg[gases[:2]],
-            self.eesc_total(df_conc_ghg).rename(gases[2]),
-        ], axis=1).mul(radeff)
+        df = self.ari__din_ref.T * radeff
 
         d1 = df.sub(df.loc[year_pi]).sum(axis=1)
         scale = -0.3 / d1.loc[2005:2014].mean()
@@ -295,10 +266,7 @@ class RfAllAR6(RfAll):
             df.append(pd.Series({gases[2]: eesc}))
             df = pd.concat(df)
 
-        d_pi = pd.concat([
-            self.emis_slcf_pi[species],
-            self.conc_ghg_pi[gases],
-        ])
+        d_pi = self.ari__din_ref[self.year_pi]
 
         df = df - d_pi
         self.save__ari_dfin = df
@@ -367,10 +335,9 @@ class RfAllAR6(RfAll):
         aci_cal
             Calibrated data
         """
-        din = self.din
-        year_pi = din.year_pi
+        year_pi = self.year_pi
         
-        df_emis_slcf = self.df_emis_slcf_ref
+        df_emis_slcf = self.din_ref['emis']
         SAMPLES = self.SAMPLES
         NINETY_TO_ONESIGMA = self.NINETY_TO_ONESIGMA
         
@@ -438,8 +405,12 @@ class RfAllAR6(RfAll):
         skeie_ozone_strat
             Calibrated data of stratospheric ozone
         """
-        df_emis_slcf = self.df_emis_slcf_ref
-        df_conc_ghg = self.df_conc_ghg_ref
+        species = self.o3__species
+        conc = self.din_ref['conc'][species[:3]].T
+        emis = self.din_ref['emis'][species[3:]].T
+
+        din_ref = pd.concat([conc, emis]).T
+        self.o3__din_ref = din_ref
 
         delta_gmst = np.hstack([
             0.,
@@ -502,13 +473,7 @@ class RfAllAR6(RfAll):
         years = np.arange(1750, 2021)
         o3_total = pd.Series(f(years), index=years)
 
-        species = self.o3__species
-        df = pd.concat([
-            df_conc_ghg[species[:2]],
-            self.eesc_total(df_conc_ghg).rename(species[2]),
-            df_emis_slcf[species[3:]],
-        ], axis=1)
-        delta = df.loc[2014] - df.loc[1750]
+        delta = din_ref.loc[2014] - din_ref.loc[1750]
 
         radeff = pd.Series({
             'CH4': 0.14,
@@ -519,7 +484,9 @@ class RfAllAR6(RfAll):
             'NOx': 0.20,
         }) / delta
 
-        fac_cmip6_skeie = (radeff * delta).sum() / (o3_total.loc[2014] - o3_total.loc[1750])
+        fac_cmip6_skeie = (radeff * delta).sum() / (
+            o3_total.loc[2014] - o3_total.loc[1750]
+        )
 
         def fit_precursors(x, rch4, rn2o, rods, rco, rvoc, rnox):
             return (
@@ -528,7 +495,7 @@ class RfAllAR6(RfAll):
 
         p, cov = curve_fit(
             fit_precursors,
-            df.loc[:2019].sub(df.loc[1750]).T.loc[species].values,
+            din_ref.loc[:2019].sub(din_ref.loc[1750]).T.loc[species].values,
             o3_total.loc[:2019].sub(o3_total.loc[1750]),
             bounds=[  # 90% range from Thornhill for each precursor
                 np.array([
@@ -580,10 +547,7 @@ class RfAllAR6(RfAll):
             ])
 
         return df.sub(
-            pd.concat([
-                self.conc_ghg_pi,
-                self.emis_slcf_pi,
-            ])[species]
+            self.o3__din_ref.loc[self.year_pi]
         ).mul(self.o3__coeff).sum(axis=df.ndim-1)
 
     def erf__bc_on_snow(self, df_emis_slcf):
@@ -598,8 +562,12 @@ class RfAllAR6(RfAll):
         -------
             Forcing in Series or scalar
         """
+        d1 = df_emis_slcf['BC']
+        if isinstance(d1, pd.Series):
+            d1 = d1.rename(None)
+
         return (
-            df_emis_slcf['BC'] - self.emis_slcf_pi['BC']
+            d1 - self.din_ref['emis'].loc[self.year_pi, 'BC']
         ) * self.bc_on_snow__factor
 
     def erf__ghg(self, df_conc_ghg, agg_minor=False):
@@ -644,14 +612,19 @@ class RfAllAR6(RfAll):
 
         df_hc = (
             df_conc_ghg[ghg_minor]
-            .sub(self.conc_ghg_pi[ghg_minor])
+            .sub(self.din_ref['conc'].loc[self.year_pi, ghg_minor])
             .mul(self.ghg__hc_eff[ghg_minor])
         )
         if agg_minor:
-            if df_conc_ghg.ndim == 2:
-                df_hc = df_hc.sum(axis=1).rename('OTHER_WMGHG')
+            if isinstance(agg_minor, str):
+                name = agg_minor
             else:
-                df_hc = pd.Series({'OTHER_WMGHG': df_hc.sum()})
+                name = 'OTHER_WMGHG'
+
+            if df_conc_ghg.ndim == 2:
+                df_hc = df_hc.sum(axis=1).rename(name)
+            else:
+                df_hc = pd.Series({name: df_hc.sum()})
 
         df = pd.concat([df, df_hc], axis=df.ndim-1)
 
@@ -673,7 +646,7 @@ class RfAllAR6(RfAll):
         """
         d1 = df_emis_co2['CO2 AFOLU']
         if isinstance(d1, pd.Series):
-            d1 = d1.cumsum()
+            d1 = d1.cumsum().rename(None)
 
         return (d1 - self.land_use__pi) * self.land_use__factor
 
@@ -689,7 +662,11 @@ class RfAllAR6(RfAll):
         -------
             Forcing in Series or scalar
         """
-        return df_erf_ghg['CH4'] * self.h2o_strat__factor
+        d1 = df_erf_ghg['CH4']
+        if isinstance(d1, pd.Series):
+            d1 = d1.rename(None)
+
+        return d1 * self.h2o_strat__factor
 
     def erf__others(self, *args):
         """Return data given as forcing of categories not subject to calculation
