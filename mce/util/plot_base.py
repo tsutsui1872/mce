@@ -405,7 +405,10 @@ class PlotBase:
         if len(args) == 0:
             axes = self.figure.axes
         else:
-            axes = [self.figure.axes[i] for i in args]
+            axes = [
+                self.figure.axes[arg] if isinstance(arg, int) else arg
+                for arg in args
+            ]
 
         if squeeze and len(axes) == 1:
             axes = axes[0]
