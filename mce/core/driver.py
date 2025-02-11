@@ -9,13 +9,172 @@ from scipy.integrate import solve_ivp
 from collections import namedtuple
 
 from .. import MCEExecError, get_logger
-from .forcing import RfAll as RfAllBase
+from .forcing import RfAll
 from .climate import IrmBase
 from .carbon import ModelOcean, ModelLand
 
 logger = get_logger(__name__)
 
-class RfAll(RfAllBase):
+class DriverBase:
+    def __init__(self, is_cdrv=False, **kw):
+        """Base driver
+
+        Parameters
+        ----------
+        is_cdrv, optional
+            True for concentration-driven, by default False
+        """
+        self.climate = IrmBase(**kw.get('kw_irm', {}))
+        self.forcing = RfAll(**kw.get('kw_rfall', {}))
+        self.ocean = ModelOcean(**kw.get('kw_ocean', {}))
+        self.land = ModelLand(**kw.get('kw_land', {}))
+
+        self.is_cdrv = is_cdrv
+
+        components = ['climate', 'ocean', 'land', 'gascycle']
+        self.preproc(**{k: v for k, v in kw.items() if k in components})
+
+    def preproc(self, **kw_comp):
+        """Generic preprocessing
+        Keyword arguments specify the component models to be used
+        Valid components: climate, ocean, land, gascycle
+        """
+        is_cdrv = self.is_cdrv
+        y0 = {}
+        jn = [0]
+        comp_order = []
+
+        for comp, config in kw_comp.items():
+            if not config:
+                continue
+
+            if comp == 'climate':
+                tauj = self.climate.parms.tauj
+                nl = len(tauj)
+                lambk, _, akj = self.climate.get_parms_ebm()
+                self.climate__lamb = lambk[0]
+                self.climate__akj = akj
+                nv = nl * nl
+                y0[comp] = np.zeros(nv)
+
+            elif comp == 'ocean':
+                nv = 3 if is_cdrv else 4
+                y0[comp] = np.zeros(nv)
+            
+            elif comp == 'land':
+                nv = 4
+                p = self.land.parms
+                cbs_pi0 = p.fnpp0 * p.amp * (p.tau * p.tau)
+                y0[comp] = cbs_pi0
+            
+            elif comp == 'gascycle':
+                # config should be a dict of tuple
+                nv = len(config)
+                conc = []
+                life = []
+                w2c = []
+
+                for gas, v in config.items():
+                    if gas in ['CO2']:
+                        continue
+
+                    unit_w, unit_c, conc_ini = v[:3]
+                    conc.append(conc_ini)
+                    life.append(self.forcing.ghgs[gas].lifetime)
+                    w2c.append(
+                        self.forcing.weight2conc(1, unit_w[:2], gas, unit_c)
+                    )
+
+                y0[comp] = np.array(conc)
+                self.gascycle = {
+                    'ghg_order': list(config),
+                    'life': np.array(life),
+                    'w2c': np.array(w2c),
+                }
+
+            else:
+                raise MCEExecError(f'invalid component {comp}')
+
+            jn.append(nv)
+            comp_order.append(comp)
+
+        jn = np.array(jn).cumsum()
+        self.map_y = dict(zip(
+            comp_order,
+            [slice(jn[i-1], jn[i]) for i in range(1, len(jn))],
+        ))
+        self.y0 = y0
+
+    def postproc(self, **kw):
+        """To be overridden to define postprocessing
+        """
+        return kw
+
+    def erf_in(self, t, y):
+        """To be overridden to evaluate forcing
+
+        Parameters
+        ----------
+        t
+            Time point
+        y
+            State variable values
+
+        Returns
+        -------
+            Forcing value
+        """
+        return 0.
+
+    def func(self, t, y):
+        """To be overridden to evaluate time derivatives
+
+        Parameters
+        ----------
+        t
+            Time point
+        y
+            State variable values
+
+        Returns
+        -------
+            Time derivative values
+        """
+        return np.zeros(sum([len(v) for _, v in self.y0.items()]))
+
+    def run(self, din, time):
+        """Generic model run method
+
+        Parameters
+        ----------
+        din
+            Input time series
+        time
+            Time points
+
+        Returns
+        -------
+            Output from postproc method
+        """
+        self.time = time
+        self.din = din
+
+        y0 = np.hstack([self.y0[comp] for comp in self.map_y])
+        sol = solve_ivp(
+            self.func, [time[0], time[-1]], y0, t_eval=time, max_step=1.,
+        )
+        self.sol = sol
+
+        out = self.postproc({
+            comp: sol.y[slc].copy()
+            for comp, slc in self.map_y.items()
+        })
+
+        return out
+
+# The followings are classes and functions to be obsoleted
+
+class RfAllMod(RfAll):
     def ghg_concentrations_to_forcing(self, dfin, co2_method=None, agg_minor=False):
         """
         Convert GHG concentrations to forcing.
