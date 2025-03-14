@@ -213,9 +213,9 @@ class RfAll(RfCO2):
         #   Table 7.SM.7 of AR6 WG1
         #   slightly changed for CH2Cl2 and CHCl3 as in the Chapter 7 source (ar6/constants/gases.py)
         self.ghgs = {
-            'CO2': Molecule('carbon dioxide', 'co2', 'CO2', 44.01, None, None),
-            'CH4': Molecule('methane', 'ch4', 'CH4', 16.04, None, 11.8),
-            'N2O': Molecule('nitrous oxide', 'n2o', 'N2O', 44.01, None, 109.),
+            'CO2': Molecule('carbon dioxide', 'co2', 'CO2', 44.01, np.nan, np.nan),
+            'CH4': Molecule('methane', 'ch4', 'CH4', 16.04, np.nan, 11.8),
+            'N2O': Molecule('nitrous oxide', 'n2o', 'N2O', 44.01, np.nan, 109.),
             # Chlorofluorocarbons
             'CFC-12': Molecule('CFC-12', 'montreal_gases', 'CCl2F2', 120.91, 0.31998, 102.), # 0.32
             'CFC-11': Molecule('CFC-11', 'montreal_gases', 'CCl3F', 137.37, 0.25941, 52.), # 0.26
