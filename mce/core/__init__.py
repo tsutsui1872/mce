@@ -4,7 +4,19 @@ MCE core API
 
 import numpy as np
 
-from .. import MCEExecError
+try:
+    import h5py
+except ModuleNotFoundError:
+    pass
+
+try:
+    from scipy.interpolate import interp1d
+except ModuleNotFoundError:
+    pass
+
+from .. import MCEExecError, get_logger
+
+logger = get_logger(__name__)
 
 class ParmsBase:
     """
@@ -88,3 +100,68 @@ class ModelBase(object):
         To be overridden to define additional initial processes.
         """
         pass
+
+
+class ScenarioBase:
+    def __init__(self, *args, **kw):
+        outpath = kw.get('outpath', 'dummy.h5')
+
+        kw = kw.copy()
+        kw_h5 = {
+            'mode': kw.pop('mode', 'w'),
+            'driver': kw.pop('driver', 'core'),
+            'backing_store': kw.pop('backing_store', outpath != 'dummy.h5'),
+        }
+        try:
+            self.file = h5py.File(outpath, **kw_h5)
+        except:
+            logger.error('h5py not available')
+
+        self.init_process(*args, **kw)
+
+    def init_process(self, *args, **kw):
+        """To be overridden to define scenarios
+        """
+        pass
+
+    def close(self):
+        if self.file is None:
+            logger.warning('file not created')
+        else:
+            self.file.close()
+            self.file = None
+
+    def __call__(self, *args, **kwds):
+        if self.file is None:
+            logger.warning('file not created')
+            ret = []
+        else:
+            ret = list(self.file)
+
+        return ret
+
+    def get_scenario(self, name):
+        din = self.file[f'{name}/input']
+        kw_interp = {'bounds_error': False, 'fill_value': 'extrapolate'}
+        ret = {}
+
+        for cat, grp in din.items():
+            ret[cat] = {
+                'time': grp['time'][:],
+                'variables': [vn for vn in grp if vn != 'time'],
+                'data': np.stack([
+                    dset[:] for vn, dset in grp.items() if vn != 'time'
+                ], axis=1),
+                'attrs': {
+                    vn: {k: v for k, v, in dset.attrs.items()}
+                    for vn, dset in grp.items() # including time
+                },
+            }
+            r = ret[cat]
+            try:
+                r['interp'] = interp1d(r['time'], r['data'].T, **kw_interp)
+            except:
+                logger.error('interp1d not available')
+
+        return ret
+
