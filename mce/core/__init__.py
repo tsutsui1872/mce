@@ -2,6 +2,7 @@
 MCE core API
 """
 
+import pathlib
 import numpy as np
 
 try:
@@ -104,19 +105,30 @@ class ModelBase(object):
 
 class ScenarioBase:
     def __init__(self, *args, **kw):
-        outpath = kw.get('outpath', 'dummy.h5')
-
         kw = kw.copy()
-        kw_h5 = {
-            'mode': kw.pop('mode', 'w'),
-            'driver': kw.pop('driver', 'core'),
-            'backing_store': kw.pop('backing_store', outpath != 'dummy.h5'),
-        }
-        try:
-            self.file = h5py.File(outpath, **kw_h5)
-        except:
-            logger.error('h5py not available')
 
+        self.outpath_dummy = 'dummy.h5'
+        outpath = kw.pop('outpath', self.outpath_dummy)
+        self.outpath = outpath
+
+        path = pathlib.Path(outpath)
+        if path.exists():
+            logger.info(f'{outpath} already exists')
+            kw_h5 = {'mode': 'r'}
+        else:
+            kw_h5 = {'mode': 'w'}
+
+        if outpath == self.outpath_dummy:
+            kw_h5['driver'] = 'core'
+            kw_h5['backing_store'] = False
+
+        kw_h5.update({
+            k: kw.pop(k)
+            for k in ['mode', 'driver', 'backing_store']
+            if k in kw
+        })
+
+        self.open(**kw_h5)
         self.init_process(*args, **kw)
 
     def init_process(self, *args, **kw):
@@ -124,17 +136,38 @@ class ScenarioBase:
         """
         pass
 
+    def open(self, mode='r', **kw_h5):
+        outpath = self.outpath
+
+        if outpath == self.outpath_dummy:
+            mesg = 'in-memory file opened'
+        else:
+            mesg = 'file {} opened with mode={}'.format(outpath, mode)
+
+        self.file = h5py.File(outpath, mode=mode, **kw_h5)
+        logger.info(mesg)
+
     def close(self):
         if self.file is None:
-            logger.warning('file not created')
+            logger.warning('file not opened')
+
         else:
+            outpath = self.outpath
+
+            if outpath == self.outpath_dummy:
+                mesg = 'in-memory file closed'
+            else:
+                mesg = f'file {outpath} closed'
+
             self.file.close()
             self.file = None
+            logger.info(mesg)
 
     def __call__(self, *args, **kwds):
         if self.file is None:
             logger.warning('file not created')
             ret = []
+
         else:
             ret = list(self.file)
 
