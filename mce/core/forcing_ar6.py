@@ -1,115 +1,25 @@
 import numpy as np
 import pandas as pd
-from scipy.interpolate import interp1d
 from scipy import stats
+from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
+
+from .. import MCEExecError
 from .forcing import RfAll
 
-class InputSeries:
-    def __init__(self, **kw):
-        """Create an input data utility instance
-        from pairs of key and dataframe given by keyword arguments
-        """
-        self.df = {}
-        self.interp = {}
-
-        kw_interp = {'bounds_error': False, 'fill_value': 'extrapolate'}
-
-        for k, df in kw.items():
-            self.df[k] = df
-            self.interp[k] = interp1d(df.index, df.values.T, **kw_interp)
-
-    def _mod_header(self, df):
-        """Ensure a given dataframe with single-level column indexes
-        and to be squeezed if a single time point is referenced
-
-        Parameters
-        ----------
-        df
-            Input dataframe
-
-        Returns
-        -------
-            Modified datafarame
-        """
-        if df.columns.nlevels == 2:
-            df = df.droplevel(1, axis=1)
-
-        df = df.squeeze()
-        if df.ndim == 1:
-            df = df.rename(None)
-
-        return df
-
-    def get_data(self, kind, *args):
-        """Return one of the input dataframe at all or specified time points
-
-        Parameters
-        ----------
-        kind
-            'emis', 'conc', or 'erf' is assumed
-
-        Returns
-        -------
-            Selected dataframe
-        """
-        if len(args) == 0:
-            df = self.df[kind]
-        else:
-            df = self.df[kind].loc[np.hstack(args)]
-
-        return self._mod_header(df)
-
-    def interp_eval(self, kind, *args):
-        """Return an interpolated dataframe at given time points
-
-        Parameters
-        ----------
-        kind
-            'emis', 'conc', or 'erf' is assumed
-
-        Returns
-        -------
-            Interpolated dataframe
-        """
-        x = np.hstack(args)
-        df = pd.DataFrame(
-            self.interp[kind](x).T, index=x, columns=self.df[kind].columns,
-        )
-
-        return self._mod_header(df)
-
-
 class RfAllAR6(RfAll):
-    def __init__(self, dfin_ref, din, *args, **kw):
-        """Create a forcing instance for full-emissions runs
-
-        Parameters
-        ----------
-        din
-            Input data utility instance
-        dfin_ref
-            Input data in pre-industrial and reference years
-        """
+    def __init__(self, emis_hist, conc_hist, *args, **kw):
         super().__init__(*args, **kw)
 
         self.SAMPLES = 100000
         self.NINETY_TO_ONESIGMA = stats.norm.ppf(0.95)
 
-        din_ref = {
-            k: v.droplevel(0).drop('unit', axis=1).rename(columns=int).T
-            for k, v in dfin_ref.groupby(level=0)
-        }
-        din_ref['conc']['ODS'] = self.eesc_total(din_ref['conc'])
-
-        self.din_ref = din_ref
-        self.din = din
-
         year_pi = 1750
         self.year_pi = year_pi
+        self.conc_pi = conc_hist.loc[year_pi]
 
         # Adjust a parameter for the AR6 CO2 forcing scheme
-        self.parms_ar6_ghg.update(C0_1750=din_ref['conc'].loc[year_pi, 'CO2'])
+        self.parms_ar6_ghg.update(C0_1750=self.conc_pi['CO2'])
 
         # Set radiative efficiency parameters for halogenated species
         map_adj = {
@@ -122,27 +32,31 @@ class RfAllAR6(RfAll):
                 * 1e-3  # ppt assumed
                 * (1. + map_adj.get(gas, 0.))
             )
-            for gas in din_ref['conc']
-            if gas not in ['CO2', 'CH4', 'N2O', 'ODS']
+            for gas in conc_hist
         })
+        # Make sure gas order consistency
+        if list(self.ghg__hc_eff.keys()) != list(self.conc_pi.keys()):
+            raise MCEExecError('gas order inconsistency')
 
         # Set a forcing factor for stratospheric water vapor
-        d1 = din_ref['conc'].loc[2019]
-        erf1 = self.c2erf_ar6('CH4', d1['CH4'], cn2o=d1['N2O'])
-        self.h2o_strat__factor = 0.05 / erf1
-
-        # Set a forcing factor for land use
-        self.land_use__pi = din_ref['emis'].loc[year_pi, 'CO2 AFOLU']
-        self.land_use__factor = -0.20 / (
-            din_ref['emis_co2__cumsum'].loc[2019, 'CO2 AFOLU']
-            - self.land_use__pi
+        yref = 2019
+        # erf1 = self.c2erf_ar6(
+        #     'CH4', conc_hist.loc[yref, 'CH4'],
+        #     cn2o=conc_hist.loc[yref, 'N2O'],
+        # )
+        # self.h2o_strat__factor = 0.05 / erf1
+        self.h2o_strat__factor = 0.05 / (
+            conc_hist.loc[yref, 'CH4'] - conc_hist.loc[year_pi, 'CH4']
         )
 
         # Set a forcing factor for light-absorbing particles on snow and ice
         self.bc_on_snow__factor = 0.08 / (
-            din_ref['emis'].loc[2019, 'BC']
-            - din_ref['emis'].loc[year_pi, 'BC']
+            emis_hist.loc[2019, 'BC']
+            - emis_hist.loc[year_pi, 'BC']
         )
+
+        self.emis_hist = emis_hist
+        self.conc_hist = conc_hist
 
         # Species associated with aerosols and ozone forcers
         self.ari__species = ['BC', 'OC', 'SO2', 'NOx', 'NMVOC', 'NH3']
@@ -156,12 +70,12 @@ class RfAllAR6(RfAll):
         self.ari__scale = None
         self.o3__coeff = None
 
-    def eesc_total(self, df_conc_ghg):
+    def eesc_total(self, conc):
         """Calculate total equivalent effective stratospheric chlorine (EESC)
 
         Parameters
         ----------
-        df_conc_ghg
+        conc
             ODS concentrations in DataFrame or Series
 
         Returns
@@ -169,7 +83,7 @@ class RfAllAR6(RfAll):
             EESC in Series or scalar
         """
         ods = self.ods
-        df = df_conc_ghg
+        df = conc
         df = df.reindex(list(ods), axis=df.ndim-1).dropna(axis=df.ndim-1)
 
         cl_atoms = pd.Series({k: ods[k].cl_atoms for k, _ in df.items()})
@@ -193,8 +107,9 @@ class RfAllAR6(RfAll):
         SAMPLES = self.SAMPLES
         NINETY_TO_ONESIGMA = self.NINETY_TO_ONESIGMA
 
-        emis = self.din_ref['emis'][species].T
-        conc = self.din_ref['conc'][gases].T
+        emis = self.emis_hist[species].T
+        conc = self.conc_hist.T.reindex(gases)
+        conc.loc['ODS'] = self.eesc_total(self.conc_hist)
         self.ari__din_ref = pd.concat([emis, conc])
 
         # Radiative efficiency per Mt, ppb, or ppt
@@ -286,43 +201,32 @@ class RfAllAR6(RfAll):
             Ensemble results
         """
         species = self.aci__species
+        aci__sample = self.aci__sample.loc[:, slice(em, em)]
 
         if isinstance(df_emis_slcf, pd.DataFrame):
             if em is None:
-                df = pd.DataFrame(
-                    np.log(
-                        1. + np.stack([
-                            v.values[:, None] * self.aci__sample.loc[k].values
-                            for k, v in df_emis_slcf[species].items()
-                        ]).sum(axis=0)
-                    ) * 1.1,
-                    index=df_emis_slcf.index,
-                )
+                vs = np.stack([
+                    v.values[:, None] * aci__sample.loc[k].values
+                    for k, v in df_emis_slcf[species].items()
+                ])
+                pd_method = pd.DataFrame
             else:
-                df = pd.Series(
-                    np.log(
-                        1. + np.vstack([
-                            v.values * self.aci__sample.loc[k, em]
-                            for k, v in df_emis_slcf[species].items()
-                        ]).sum(axis=0)
-                    ) * 1.1,
-                    index=df_emis_slcf.index,
-                )
+                vs = np.stack([
+                    v.values * aci__sample.loc[k].values
+                    for k, v in df_emis_slcf[species].items()
+                ])
+                pd_method = pd.Series
         else:
-            if em is None:
-                df = np.log(
-                    1. + np.vstack([
-                        v * self.aci__sample.loc[k].values
-                        for k, v in df_emis_slcf[species].items()
-                    ]).sum(axis=0)
-                ) * 1.1
-            else:
-                df = np.log(
-                    1. + np.array([
-                        v * self.aci__sample.loc[k, em]
-                        for k, v in df_emis_slcf[species].items()
-                    ]).sum()
-                ) * 1.1
+            vs = np.stack([
+                v * aci__sample.loc[k].values
+                for k, v in df_emis_slcf[species].items()
+            ])
+            pd_method = None
+
+        df = np.log(1. + vs.sum(axis=0)) * 1.1
+
+        if pd_method is not None:
+            df = pd_method(df, index=df_emis_slcf.index)
 
         return df
 
@@ -337,7 +241,7 @@ class RfAllAR6(RfAll):
         """
         year_pi = self.year_pi
         
-        df_emis_slcf = self.din_ref['emis']
+        df_emis_slcf = self.emis_hist
         SAMPLES = self.SAMPLES
         NINETY_TO_ONESIGMA = self.NINETY_TO_ONESIGMA
         
@@ -406,35 +310,15 @@ class RfAllAR6(RfAll):
             Calibrated data of stratospheric ozone
         """
         species = self.o3__species
-        conc = self.din_ref['conc'][species[:3]].T
-        emis = self.din_ref['emis'][species[3:]].T
+        if species != ['CH4', 'N2O', 'ODS', 'CO', 'NMVOC', 'NOx']:
+            raise MCEExecError('precursor order inconsistent')
+
+        conc = self.conc_hist.T.reindex(species[:3])
+        conc.loc['ODS'] = self.eesc_total(self.conc_hist)
+        emis = self.emis_hist[species[3:]].T
 
         din_ref = pd.concat([conc, emis]).T
         self.o3__din_ref = din_ref
-
-        delta_gmst = np.hstack([
-            0.,
-            [
-                temp_obs.loc[slice(*period)].mean()
-                for period in [
-                    (1915, 1925),
-                    (1925, 1935),
-                    (1935, 1945),
-                    (1945, 1955),
-                    (1955, 1965),
-                    (1965, 1975),
-                    (1975, 1985),
-                    (1985, 1995),
-                    (1995, 2005),
-                    (2002, 2012),
-                    (2005, 2015),
-                    (2009, 2019),
-                ]
-            ],
-            # not used
-            temp_obs.loc[2017],
-            temp_obs.loc[2018],
-        ])
 
         good_models = [
             'BCC-ESM1',
@@ -453,6 +337,13 @@ class RfAllAR6(RfAll):
             for df in [skeie_ozone_trop, skeie_ozone_strat]
         ])
 
+        delta_gmst = np.hstack([
+            0., [
+                temp_obs.loc[y-5:y+5].mean() for y in
+                list(range(1920, 2000+1, 10)) + [2007, 2010, 2014]
+            ],
+            temp_obs.loc[2017:2018].values, # not used
+        ])
         skeie_ssp245 = pd.concat([
             pd.Series({1750: -0.03}),
             pd.concat([
@@ -475,44 +366,29 @@ class RfAllAR6(RfAll):
 
         delta = din_ref.loc[2014] - din_ref.loc[1750]
 
-        radeff = pd.Series({
-            'CH4': 0.14,
-            'N2O': 0.03,
-            'ODS': -0.11, # excludes UKESM
-            'CO': 0.067, # stevenson CMIP5 scaled to CO + VOC total
-            'NMVOC': 0.043, # stevenson CMIP5 scaled to CO + VOC total
-            'NOx': 0.20,
-        }) / delta
+        radeff = [0.14, 0.03, -0.11, 0.067, 0.043, 0.20]
+        radeff = pd.Series(radeff, index=species) / delta
 
         fac_cmip6_skeie = (radeff * delta).sum() / (
             o3_total.loc[2014] - o3_total.loc[1750]
         )
 
-        def fit_precursors(x, rch4, rn2o, rods, rco, rvoc, rnox):
-            return (
-                rch4 * x[0] + rn2o * x[1] + rods * x[2] + rco * x[3] + rvoc * x[4] + rnox * x[5]
-            )
-
-        p, cov = curve_fit(
-            fit_precursors,
+        bounds_l = [0.09, 0.01, -0.21, 0.010, 0.,    0.09]
+        bounds_u = [0.19, 0.05, -0.01, 0.124, 0.086, 0.31]
+        p, _ = curve_fit(
+            lambda x, rch4, rn2o, rods, rco, rvoc, rnox:
+            sum([
+                r1 * x1 for x1, r1 in
+                zip(x, [rch4, rn2o, rods, rco, rvoc, rnox])
+            ]),
             din_ref.loc[:2019].sub(din_ref.loc[1750]).T.loc[species].values,
             o3_total.loc[:2019].sub(o3_total.loc[1750]),
             bounds=[  # 90% range from Thornhill for each precursor
                 np.array([
-                    0.09 / delta['CH4'],
-                    0.01 / delta['N2O'],
-                    -0.21 / delta['ODS'],
-                    0.010 / delta['CO'],
-                    0 / delta['NMVOC'],
-                    0.09 / delta['NOx'],
+                    v / delta[k] for k, v in zip(species, bounds_l)
                 ]) / fac_cmip6_skeie,
                 np.array([
-                    0.19 / delta['CH4'],
-                    0.05 / delta['N2O'],
-                    -0.01 / delta['ODS'],
-                    0.124 / delta['CO'],
-                    0.086 / delta['NMVOC'],
-                    0.31 / delta['NOx'],
+                    v / delta[k] for k, v in zip(species, bounds_u)
                 ]) / fac_cmip6_skeie,
             ],
         )
@@ -550,138 +426,47 @@ class RfAllAR6(RfAll):
             self.o3__din_ref.loc[self.year_pi]
         ).mul(self.o3__coeff).sum(axis=df.ndim-1)
 
-    def erf__bc_on_snow(self, df_emis_slcf):
-        """Calculate forcing of light-absorbing particles on snow and ice
+    def erf__ghg_major(self, conc):
+        """Calculate forcing for each of CO2, CH4, and N2O
 
         Parameters
         ----------
-        df_emis_slcf
-            Input emissions in DataFrame or Series including BC
+        conc
+            GHG concentrations in DataFrame or Series
 
         Returns
         -------
             Forcing in Series or scalar
         """
-        d1 = df_emis_slcf['BC']
-        if isinstance(d1, pd.Series):
-            d1 = d1.rename(None)
-
-        return (
-            d1 - self.din_ref['emis'].loc[self.year_pi, 'BC']
-        ) * self.bc_on_snow__factor
-
-    def erf__ghg(self, df_conc_ghg, agg_minor=False):
-        """Calculate GHGs forcing
-
-        Parameters
-        ----------
-        df_conc_ghg
-            Input concentrations in DataFrame or Series
-        agg_minor, optional
-            Halogenated species are aggregated if True, by default False
-
-        Returns
-        -------
-            Forcing in DataFrame or Series
-        """
-        map_kw = {
-            'CO2': {'cn2o': df_conc_ghg['N2O']},
-            'CH4': {'cn2o': df_conc_ghg['N2O']},
-            'N2O': {
-                'cco2': df_conc_ghg['CO2'],
-                'cch4': df_conc_ghg['CH4'],
-            },
+        kw = {
+            'c{}'.format(gas.lower()): conc.get(gas)
+            for gas in ['CO2', 'CH4', 'N2O']
         }
-        ghg_major = []
-        ghg_minor = []
-        for gas, _ in df_conc_ghg.items():
-            if gas in ['CO2', 'CH4', 'N2O']:
-                ghg_major.append(gas)
-            else:
-                ghg_minor.append(gas)
-
         df = {
-            gas: self.c2erf_ar6(gas, d1, **map_kw[gas])
-            for gas, d1 in df_conc_ghg[ghg_major].items()
+            gas: self.c2erf_ar6(gas, conc[gas], **kw)
+            for gas in ['CO2', 'CH4', 'N2O'] if gas in conc
         }
-
-        if df_conc_ghg.ndim == 2:
-            df = pd.DataFrame(df, index=df_conc_ghg.index)
-        else:
+        if conc.ndim == 1:
             df = pd.Series(df)
-
-        df_hc = (
-            df_conc_ghg[ghg_minor]
-            .sub(self.din_ref['conc'].loc[self.year_pi, ghg_minor])
-            .mul(self.ghg__hc_eff[ghg_minor])
-        )
-        if agg_minor:
-            if isinstance(agg_minor, str):
-                name = agg_minor
-            else:
-                name = 'OTHER_WMGHG'
-
-            if df_conc_ghg.ndim == 2:
-                df_hc = df_hc.sum(axis=1).rename(name)
-            else:
-                df_hc = pd.Series({name: df_hc.sum()})
-
-        df = pd.concat([df, df_hc], axis=df.ndim-1)
-
-        return df
-
-    def erf__land_use(self, df_emis_co2):
-        """Calculate land use forcing
-
-        Parameters
-        ----------
-        df_emis_co2
-            Input emissions in DataFrame or Series including CO2 AFOLU
-            When Series is given, it should contain cumulative sums
-            at a speciic time point
-
-        Returns
-        -------
-            Forcing in Series or scalar
-        """
-        d1 = df_emis_co2['CO2 AFOLU']
-        if isinstance(d1, pd.Series):
-            d1 = d1.cumsum().rename(None)
-
-        return (d1 - self.land_use__pi) * self.land_use__factor
-
-    def erf__h2o_strat(self, df_erf_ghg):
-        """Calculate stratospheric water vapor forcing
-
-        Parameters
-        ----------
-        df_erf_ghg
-            Input forcing in DataFrame or Series including CH4
-
-        Returns
-        -------
-            Forcing in Series or scalar
-        """
-        d1 = df_erf_ghg['CH4']
-        if isinstance(d1, pd.Series):
-            d1 = d1.rename(None)
-
-        return d1 * self.h2o_strat__factor
-
-    def erf__others(self, *args):
-        """Return data given as forcing of categories not subject to calculation
-
-        Returns
-        -------
-            Forcing in DataFrame or Series
-        """
-        if len(args) == 0:
-            df = self.din.get_data('erf')
         else:
-            time = np.hstack(args)
-            if np.issubdtype(time.dtype, np.integer):
-                df = self.din.get_data('erf', time)
-            else:
-                df = self.din.interp_eval('erf', time)
+            df = pd.DataFrame(df, index=conc.index)
 
         return df
+
+    def erf__ghg_minor(self, conc):
+        """Calculate forcing for each of halogenated species
+
+        Parameters
+        ----------
+        conc
+            GHG concentrations in DataFrame or Series
+
+        Returns
+        -------
+            Forcing in Series or scalar
+        """
+        df = (conc - self.conc_pi) * self.ghg__hc_eff
+        # nan given for CO2, CH4, and N2O if included
+        df = df.dropna(axis=df.ndim-1)
+        return df
+
