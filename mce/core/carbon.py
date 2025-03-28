@@ -552,8 +552,14 @@ class ParmsLand(ParmsBase):
         amp[3] = (1.-(amp[0]*tau[0]+amp[1]*tau[1])
                     +tau[2]*(amp[0]+amp[1]) ) / (tau[3]-tau[2])
         amp[2] = -(amp[0]+amp[1]+amp[3])
+        self.add('tau_ref', tau, 'Overturning times (reference)', 'yr')
+        self.add('amp_ref', amp, 'Response amplitudes (reference)', 'yr-1')
         self.add('tau', tau, 'Overturning times', 'yr', False)
         self.add('amp', amp, 'Response amplitudes', 'yr-1', False)
+        self.add(
+            'eff_afolu', 1.,
+            'Control parameter of AFOLU emissions effect', 'none', False,
+        )
         """
         Base values of impulse response parameters based on Joos et al.
         (1996, https://doi.org/10.3402/tellusb.v48i3.15921)
