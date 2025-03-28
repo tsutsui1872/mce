@@ -21,15 +21,6 @@ class DriverBase:
         self.save = {}
         self.preproc(**{k: v for k, v in kw.items() if k in components})
 
-    def _getta(self, y):
-        if 'climate' not in self.map_y:
-            raise MCEExecError(f'climate component not used')
-
-        nl = len(self.climate.parms.tauj)
-        takj = y[self.map_y['climate']].reshape((nl, nl))
-
-        return takj
-
     def preproc(self, **kw_comp):
         """Generic preprocessing
         Keyword arguments specify the component models to be used
@@ -50,23 +41,25 @@ class DriverBase:
                     'akj': akj,
                 }
                 nv = nl * nl
-                y0[comp] = np.zeros(nv)
+                y0[comp] = config.get('init', np.zeros(nv))
 
             elif comp == 'ocean':
                 # emission-driven default
                 is_cdrv = config.get('is_cdrv', False)
                 nv = 3 if is_cdrv else 4
-                y0[comp] = np.zeros(nv)
+                y0[comp] = config.get('init', np.zeros(nv))
                 self.save['ocean'] = {'is_cdrv': is_cdrv}
-            
+
             elif comp == 'land':
                 nv = 4
                 p = self.land.parms
-                cbs_pi0 = p.fnpp0 * p.amp * (p.tau * p.tau)
-                y0[comp] = cbs_pi0
-                self.save['land'] = {'cbs_pi0': cbs_pi0}
-            
+                cbs_pi = p.fnpp0 * p.amp * (p.tau * p.tau)
+                cbs_pi0 = p.fnpp0 * p.amp_ref * (p.tau_ref * p.tau_ref)
+                y0[comp] = cbs_pi + config.get('init', np.zeros(nv))
+                self.save['land'] = {'cbs_pi': cbs_pi, 'cbs_pi0': cbs_pi0}
+
             elif comp == 'gascycle':
+                # config gives initial concentrations by dict for each gas
                 nv = len(config)
 
                 map_unit_w = {'CH4': 'Mt', 'N2O': 'Mt'}
@@ -186,8 +179,7 @@ class DriverBase:
 
         Returns
         -------
-            Time series of CO2 concentration in ppm
-            from a given scenario
+            Time series of CO2 concentration in ppm from a given scenario
         """
         return []
 
@@ -205,77 +197,87 @@ class DriverBase:
         -------
             Time derivative of each prediction variable at the time point
         """
+        tas = 0.
+        catm = None
         emis_co2, ecum_co2 = self.emis_co2_in(t)
+        ydot = {}
 
-        if 'climate' in self.map_y:
-            takj = self._getta(y)
+        def get_model(comp):
+            return (
+                comp,
+                getattr(self, comp),
+                self.map_y.get(comp),
+                self.save.get(comp),
+            )
+
+        comp, model, slc, save = get_model('climate')
+        if slc:
+            nl = len(model.parms.tauj)
+            takj = y[slc].reshape((nl, nl))
             tas = takj[0, :].sum()
+            lambk = save['lambk']
+            akj = save['akj']
+            takjdot = (self.erf_in(t, y) * (akj / lambk[0]) - takj) / model.parms.tauj
+            ydot[comp] = takjdot.ravel()
 
-        ydot = []
+        comp, model, slc, save = get_model('ocean')
+        if slc:
+            hls = model.parms.hlk[0]
 
-        for comp, slc in self.map_y.items():
-            model = getattr(self, comp)
-
-            if comp == 'climate':
-                lambk = self.save[comp]['lambk']
-                akj = self.save[comp]['akj']
-                takjdot = (self.erf_in(t, y) * (akj / lambk[0]) - takj) / model.parms.tauj
-                ydot.append(takjdot.ravel())
-
-            elif comp == 'ocean':
-                hls = model.parms.hlk[0]
-
-                if self.save['ocean']['is_cdrv']:
-                    cco2 = self.conc_co2_in(t)
-                    catm = (cco2 - model.parms.cco2_pi) / model.parms.alphaa
-                    coc0 = model.partit_inv(catm, hls, tas) - catm
-                    coc = np.hstack([coc0, y[slc]])
-                    cocdot = -np.dot(model.msyst[1:, :], coc)
-
-                else:
-                    coc = np.array(y[slc])
-                    catm = model.partit(coc[0], hls, tas)
-                    coc[0] -= catm
-                    cocdot = -np.dot(model.msyst, coc)
-                    cocdot[0] += emis_co2.get('FFI', 0.)
-
-                ydot.append(cocdot)
-
-            elif comp == 'land':
-                cbs = y[slc]
-                fert = model.fertmm(catm)
-
-                # Assumption 1
-                # Decrease in primary production is proportional
-                # to cumulative AFOLU emissions
-                cbst_pi = self.y0[comp].sum()
-                fert *= 1. - ecum_co2.get('AFOLU', 0.) / cbst_pi
-                tau_l = model.get_tau(tas)
-                cbsdot = -cbs/tau_l + fert * model.parms.amp * tau_l
-
-                # Assumption 2
-                # AFOLU emissions affect wood component
-                cbsdot[2] -= emis_co2.get('AFOLU', 0.)
-
-                ydot.append(cbsdot)
-
-            elif comp == 'gascycle':
-                conc = y[slc]
-                life = self.save['gascycle']['life']
-                w2c = self.save['gascycle']['w2c']
-                conc_dot = - conc / life + self.emis_ghg_in(t) * w2c
-
-                ydot.append(conc_dot)
+            if save['is_cdrv']:
+                cco2 = self.conc_co2_in(t)
+                catm = (cco2 - model.parms.cco2_pi) / model.parms.alphaa
+                coc0 = model.partit_inv(catm, hls, tas) - catm
+                coc = np.hstack([coc0, y[slc]])
+                cocdot = -np.dot(model.msyst[1:, :], coc)
 
             else:
-                raise MCEExecError(f'unexpected component {comp}')
+                coc = np.array(y[slc])
+                catm = model.partit(coc[0], hls, tas)
+                coc[0] -= catm
+                cocdot = -np.dot(model.msyst, coc)
+                cocdot[0] += emis_co2.get('FFI', 0.)
 
-        if 'ocean' in self.map_y and not self.save['ocean']['is_cdrv']:
-            # Changes in land carbon pool contribute to opposite changes
-            # in the composit atmosphere and mixed-ocean layer
-            cocdot[0] -= cbsdot.sum()
+            ydot[comp] = cocdot
 
-        return np.hstack(ydot)
+        comp, model, slc, save = get_model('land')
+        if slc:
+            cbs = y[slc]
+            # land component should be used with ocean component
+            fert = model.fertmm(catm)
+
+            # Assumption 1
+            # Decrease in primary production is proportional
+            # to cumulative AFOLU emissions
+            cbs_pi0 = save['cbs_pi0'].sum()
+            fert *= (
+                model.parms.eff_afolu
+                * (cbs_pi0 - ecum_co2.get('AFOLU', 0.)) / cbs_pi0
+            )
+            tau_l = model.get_tau(tas)
+            cbsdot = -cbs/tau_l + fert * model.parms.amp * tau_l
+
+            # Assumption 2
+            # AFOLU emissions affect wood component
+            cbsdot[2] -= emis_co2.get('AFOLU', 0.)
+
+            ydot[comp] = cbsdot
+
+            if len(cocdot) == 4: # emission-driven
+                # Changes in land carbon pool contribute to opposite changes
+                # in the composit atmosphere and mixed-ocean layer
+                cocdot[0] -= cbsdot.sum()
+                # where cocdot is equivalent to ydot['ocean']
+
+        comp, model, slc, save = get_model('gascycle')
+        if slc:
+            conc = y[slc]
+            life = save['life']
+            w2c = save['w2c']
+            conc_dot = - conc / life + self.emis_ghg_in(t) * w2c
+            ydot[comp] = conc_dot
+
+        return np.hstack([ydot[comp] for comp in self.map_y])
 
     def preproc_add(self, *args, **kw):
         """To be overridden to define scenario-dependent preprocessing
@@ -350,8 +352,8 @@ class DriverBase:
 
             elif comp == 'land':
                 cbs = y
-                cbs_pi0 = self.save[comp]['cbs_pi0']
-                cbst = (cbs - cbs_pi0[:, None]).sum(axis=0)
+                cbs_pi = self.save[comp]['cbs_pi']
+                cbst = (cbs - cbs_pi[:, None]).sum(axis=0)
                 data['cbst'] = cbst
 
             elif comp == 'gascycle':
