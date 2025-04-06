@@ -11,7 +11,8 @@ class DriverBase:
     def __init__(self, **kw):
         """Base driver
         """
-        self.climate = IrmBase(**kw.get('kw_irm', {}))
+        nl = kw.get('climate', {}).get('nl', 3)
+        self.climate = IrmBase(nl, **kw.get('kw_irm', {}))
         self.forcing = RfAll(**kw.get('kw_rfall', {}))
         self.ocean = ModelOcean(**kw.get('kw_ocean', {}))
         self.land = ModelLand(**kw.get('kw_land', {}))
