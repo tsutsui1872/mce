@@ -6,5 +6,6 @@ mce/data/preproc2
 data/ar6-ch7
 
 # untracked files
+data/calib_cmip.h5
 datain/
 untracked/
