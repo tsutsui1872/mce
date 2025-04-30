@@ -10,7 +10,7 @@ variables:
     units: Gt C
   cbsf:
     long_name: Atmosphere-to-land CO2 flux
-    units: Gt C y-1
+    units: Gt C yr-1
   cbs:
     long_name: Accumulated carbon over land
     units: Gt C
@@ -22,7 +22,7 @@ variables:
     units: ppm
   cocf:
     long_name: Atmosphere-to-ocean CO2 flux
-    units: Gt C y-1
+    units: Gt C yr-1
   coct:
     long_name: Accumulated total carbon over ocean
     units: Gt C
@@ -31,7 +31,7 @@ variables:
     units: Gt C
   eco2:
     long_name: CO2 emissions
-    units: Gt C y-1
+    units: Gt C yr-1
   erf:
     long_name: Total effective radiative forcing
     units: W m-2
@@ -138,13 +138,13 @@ parameters:
   climate:
     tau0:
       long_name: First (shortest) time constant
-      units: y
+      units: yr
     tau1:
       long_name: Second time constant
-      units: y
+      units: yr
     tau2:
       long_name: Third time constant
-      units: y
+      units: yr
     a0:
       long_name: Fraction of the first time constant contribution to the surface temperature change
       units: no_unit
@@ -215,16 +215,16 @@ parameters:
   ocean:
     tau1:
       long_name: First (finite and longest) component of time constants
-      units: y
+      units: yr
     tau2:
       long_name: Second component of time constants
-      units: y
+      units: yr
     tau3:
       long_name: Third component of time constants
-      units: y
+      units: yr
     tau4:
       long_name: Fourth (shortest) component of time constants
-      units: y
+      units: yr
     amp0:
       long_name: Asymptotic long-term airborne fraction
       units: no_unit
@@ -254,13 +254,13 @@ parameters:
       units: m
     eta1:
       long_name: Exchange coefficient between the surface and layer 1
-      units: m y-1
+      units: m yr-1
     eta2:
       long_name: Exchange coefficient between the sub-surface layers 1 and 2
-      units: m y-1
+      units: m yr-1
     eta3:
       long_name: Exchange coefficient between the sub-surface layers 2 and 3
-      units: m y-1
+      units: m yr-1
 
   land:
     beta:
