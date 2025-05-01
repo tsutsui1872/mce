@@ -5,7 +5,10 @@ import pathlib
 import urllib.request
 from datetime import datetime
 import pandas as pd
-import netCDF4
+try:
+    import netCDF4
+except ModuleNotFoundError:
+    netCDF4 = None
 
 from .. import get_logger
 
