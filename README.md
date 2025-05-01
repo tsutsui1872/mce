@@ -1,5 +1,39 @@
 # mce
-A Minimal CMIP Emulator (MCE) is a simplified climate model that mimics an ensemble of state-of-the-art, full-scale complex climate models from the Coupled Model Intercomparison Project (CMIP). It is intended to emulate time series of several key variables, such as effective radiative forcing and global-mean temperature response, from individual CMIP models in a minimal way with sufficient accuracy. Main use includes diagnosing forcing and response parameters of CMIP models and conducting probabilistic climate projections that reflect multi-model variations.
+
+A Minimal CMIP Emulator (MCE) is a simplified climate model that mimics an ensemble of state-of-the-art full-scale complex climate models from the Coupled Model Intercomparison Project (CMIP). It is intended to emulate the time series of several key variables, such as effective radiative forcing and global-mean temperature response, from individual CMIP models in a minimal manner with sufficient accuracy. The main uses include diagnosing forcing and response parameters of CMIP models and conducting probabilistic climate projections that reflect multi-model variations.
+
+The MCE has evolved as a climate scenario analysis tool, expanding its functionality and range of applications. The latest v1.3 allows for a more comprehensive analysis of causal relationships from various emissions to global climate and carbon cycle responses. It also incorporates a flexible mechanism for handling various scenario data and parameter ensembles for probabilistic assessment.
+
+For more information on how to use this tool, refer to the following Jupyter Notebook files and the documentation of Python modules imported therein:
+
+- [`calib_climate_pre.ipynb`](notebook/calib_climate_pre.ipynb): normalizes CMIP5 and CMIP6 climate model outputs
+- [`calib_climate.ipynb`](notebook/calib_climate.ipynb): calibrates impulse response parameters for CMIP5 and CMIP6 climate models
+- [`mk_forcing_ar6__01.ipynb`](notebook/mk_forcing_ar6__01.ipynb): prepares the data needed to calculate categorized forcing based on Indicators of Global Climate Change
+- [`mk_forcing_ar6__02.ipynb`](notebook/mk_forcing_ar6__02.ipynb): creates historical scenario data based on Indicators of Global Climate Change
+- [`mk_inv_emissions.ipynb`](notebook/mk_inv_emissions.ipynb): creates historical emissions of non-CO<sub>2</sub> greenhouse gases by inverting their observed concentrations, including CH<sub>4</sub> and N<sub>2</sub>O emissions from natural sources and emissions of 49 halogenated species
+- [`mk_scenario_ar6db.ipynb`](notebook/mk_scenario_ar6db.ipynb): prepares illustrative scenarios from IPCC WGIII AR6
+- [`mk_scenario_rcmip2.ipynb`](notebook/mk_scenario_rcmip2.ipynb): prepares scenarios from RCMIP Phase 2
+- [`mk_scenario_hist_future.ipynb`](notebook/mk_scenario_hist_future.ipynb): combines historical and future scenarios over a transition period
+- [`t_forcing.ipynb`](notebook/t_forcing.ipynb): a use case describing the CO<sub>2</sub> forcing scheme in MCE
+- [`t_climate.ipynb`](notebook/t_climate.ipynb): a use case for describing the climate component in MCE
+- [`pulse_response.ipynb`](notebook/pulse_response.ipynb): a use case for calculating thermal responses to idealized forcing changes
+- [`t_driver_gascycle.ipynb`](notebook/t_driver_gascycle.ipynb): a use case describing the gas-cycle component in MCE for non-CO<sub>2</sub> greenhouse gases
+- [`t_driver_climate.ipynb`](notebook/t_driver_climate.ipynb): a use case for CO<sub>2</sub>-only climate runs
+- [`t_driver.ipynb`](notebook/t_driver.ipynb): a use case for CO<sub>2</sub>-only climate-carbon cycle runs in both emission- and concentration-driven modes
+- [`t_driver_full_emissions.ipynb`](notebook/t_driver_full_emissions.ipynb): a use case for an emission-driven climate-carbon cycle run using full greenhouse gases and other anthropogenic and natural forcing agents
+- [`t_genparms.ipynb`](notebook/t_genparms.ipynb): a use case for parameter sampling and constraining based on CMIP5 and CMIP6 Earth system models
+
+The following Notebook files were used to create figures in published papers (Tsutsui, 2020; 2022):
+
+- [`mkfig.ipynb`](notebook/mkfig.ipynb): figures in Tsutsui (2020), including updates
+- [`mkfig_pdf.ipynb`](notebook/mkfig_pdf.ipynb): supplementary figures in Tsutsui (2020), including updates
+- [`t_genparms_rcmip2.ipynb`](notebook/t_genparms_rcmip2.ipynb): figures in Tsutsui (2022), as well as descriptions of the main MCE components and the results from ensemble runs constrained according to the RCMIP2 protocol
+
+
+Tsutsui, J. (2020). Diagnosing transient response to CO<sub>2</sub> forcing in coupled atmosphere-ocean model experiments using a climate model emulator. Geophys. Res. Lett., 47, e2019GL085844. https://doi.org/10.1029/2019GL085844
+
+Tsutsui, J. (2022). Minimal CMIP Emulator (MCE v1.2): a new simplified method for probabilistic climate projections, Geosci. Model Dev., 15, 951-970. https://doi.org/10.5194/gmd-15-951-2022
+
 
 ## First release v1.0
 
@@ -7,7 +41,6 @@ The first release v1.0 contains Python programs and associated data with the emu
 
 Computing methods and analysis of the CMIP5 and CMIP6 models are described in the following paper:
 
-Tsutsui, J. (2020). Diagnosing transient response to CO<sub>2</sub> forcing in coupled atmosphere-ocean model experiments using a climate model emulator. Geophysical Research Letters, 47, e2019GL085844. https://doi.org/10.1029/2019GL085844
 
 One of the Jupyter notebooks demonstrates creating the figures shown in this paper.
 
