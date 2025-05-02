@@ -35,6 +35,13 @@ class IrmParms(ParmsBase):
             'W m-2 degC-1',
             False,
         )
+        self.add(
+            'eff',
+            1.,
+            'Ocean heat uptake efficacy',
+            'none',
+            False,
+        )
 
 class IrmBase(ModelBase):
     def init_process(self, *args, **kw):
